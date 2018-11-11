@@ -51,7 +51,7 @@
   tasks:
     - name: Install our CA into local system CA dir
       copy:
-        src: "{{ project_config.srvkube.guest }}/ca.pem"
+        src: "{{ config.srvkube.guest }}/ca.pem"
         dest: /usr/local/share/ca-certificates/kube-ca.crt
       notify: Update CA Certificates
 
@@ -67,7 +67,7 @@
     - name: Download and install k8s binaries
       block:
         - get_url: 
-            url: https://github.com/kubernetes/kubernetes/releases/download/v{{ project_config.k8s.version }}/kubernetes.tar.gz
+            url: https://github.com/kubernetes/kubernetes/releases/download/v{{ config.k8s.version }}/kubernetes.tar.gz
             dest: /tmp/kubernetes.tar.gz
             validate_certs: no
         - unarchive:
@@ -97,7 +97,7 @@
           with_items:
             - /tmp/kubernetes.tar.gz
             - /tmp/kubernetes
-      when: not sym.stat.exists or k8s_actual_version.stdout is not search("v" + project_config.k8s.version)
+      when: not sym.stat.exists or k8s_actual_version.stdout is not search("v" + config.k8s.version)
 
     - name: Create k8s directories
       file:
@@ -120,23 +120,23 @@
         - kube-scheduler
 
     - name: kubectl set-cluster for admin user
-      shell: kubectl config set-cluster k8s.{{ project_config.virtual.domain }} --certificate-authority='{{ project_config.srvkube.guest }}/ca.pem' --embed-certs=true --server=https://k8s-api.{{ project_config.virtual.domain }}
+      shell: kubectl config set-cluster k8s.{{ config.virtual.domain }} --certificate-authority='{{ config.srvkube.guest }}/ca.pem' --embed-certs=true --server=https://k8s-api.{{ config.virtual.domain }}
       changed_when: false
 
     - name: kubectl set-credentials for admin user
-      shell: kubectl config set-credentials admin --client-certificate='{{ project_config.srvkube.guest }}/admin.pem' --client-key='{{ project_config.srvkube.guest }}/admin-key.pem' --embed-certs=true
+      shell: kubectl config set-credentials admin --client-certificate='{{ config.srvkube.guest }}/admin.pem' --client-key='{{ config.srvkube.guest }}/admin-key.pem' --embed-certs=true
       changed_when: false
 
     - name: kubectl set-context for admin user
-      shell: kubectl config set-context k8s.{{ project_config.virtual.domain }} --cluster=k8s.{{ project_config.virtual.domain }} --user=admin
+      shell: kubectl config set-context k8s.{{ config.virtual.domain }} --cluster=k8s.{{ config.virtual.domain }} --user=admin
       changed_when: false
 
     - name: kubectl use-context for admin user
-      shell: kubectl config use-context k8s.{{ project_config.virtual.domain }} --user=admin
+      shell: kubectl config use-context k8s.{{ config.virtual.domain }} --user=admin
       changed_when: false
 
     - name: kubectl set-cluster for users
-      shell: kubectl config set-cluster k8s.{{ project_config.virtual.domain }} --certificate-authority='{{ project_config.srvkube.guest }}/ca.pem' --embed-certs=true --server=https://k8s-api.{{ project_config.virtual.domain }} --kubeconfig=/var/lib/{{ item }}/kubeconfig
+      shell: kubectl config set-cluster k8s.{{ config.virtual.domain }} --certificate-authority='{{ config.srvkube.guest }}/ca.pem' --embed-certs=true --server=https://k8s-api.{{ config.virtual.domain }} --kubeconfig=/var/lib/{{ item }}/kubeconfig
       changed_when: false
       with_items:
         - kubelet
@@ -145,7 +145,7 @@
         - kube-scheduler
 
     - name: kubectl set-credentials for users (except for kubelet)
-      shell: kubectl config set-credentials {{ item }} --client-certificate='{{ project_config.srvkube.guest }}/{{ item }}.pem' --client-key='{{ project_config.srvkube.guest }}/{{ item }}-key.pem' --embed-certs=true --kubeconfig=/var/lib/{{ item }}/kubeconfig
+      shell: kubectl config set-credentials {{ item }} --client-certificate='{{ config.srvkube.guest }}/{{ item }}.pem' --client-key='{{ config.srvkube.guest }}/{{ item }}-key.pem' --embed-certs=true --kubeconfig=/var/lib/{{ item }}/kubeconfig
       changed_when: false
       with_items:
         - kube-proxy
@@ -153,11 +153,11 @@
         - kube-scheduler
 
     - name: kubectl set-credentials for kubelet
-      shell: kubectl config set-credentials kubelet --client-certificate='{{ project_config.srvkube.guest }}/{{ ansible_hostname }}-worker.pem' --client-key='{{ project_config.srvkube.guest }}/{{ ansible_hostname }}-worker-key.pem' --embed-certs=true --kubeconfig=/var/lib/kubelet/kubeconfig
+      shell: kubectl config set-credentials kubelet --client-certificate='{{ config.srvkube.guest }}/{{ ansible_hostname }}-worker.pem' --client-key='{{ config.srvkube.guest }}/{{ ansible_hostname }}-worker-key.pem' --embed-certs=true --kubeconfig=/var/lib/kubelet/kubeconfig
       changed_when: false
 
     - name: kubectl set-context for users
-      shell: kubectl config set-context k8s.{{ project_config.virtual.domain }} --cluster=k8s.{{ project_config.virtual.domain }} --user={{ item }} --kubeconfig=/var/lib/{{ item }}/kubeconfig
+      shell: kubectl config set-context k8s.{{ config.virtual.domain }} --cluster=k8s.{{ config.virtual.domain }} --user={{ item }} --kubeconfig=/var/lib/{{ item }}/kubeconfig
       changed_when: false
       with_items:
         - kubelet
@@ -166,7 +166,7 @@
         - kube-scheduler
 
     - name: kubectl use-context for users
-      shell: kubectl config use-context k8s.{{ project_config.virtual.domain }} --user={{ item }} --kubeconfig=/var/lib/{{ item }}/kubeconfig
+      shell: kubectl config use-context k8s.{{ config.virtual.domain }} --user={{ item }} --kubeconfig=/var/lib/{{ item }}/kubeconfig
       changed_when: false
       with_items:
         - kubelet
@@ -217,17 +217,17 @@
               virtual_router_id 47
               advert_int 3
 
-              unicast_src_ip {{ project_config.virtual.nodes[ansible_hostname].ip }}
+              unicast_src_ip {{ config.virtual.nodes[ansible_hostname].ip }}
               unicast_peer {
-          {% for k, v in project_config.virtual.nodes | dictsort %}
-          {% if v.ip != project_config.virtual.nodes[ansible_hostname].ip %}
+          {% for k, v in config.virtual.nodes | dictsort %}
+          {% if v.ip != config.virtual.nodes[ansible_hostname].ip %}
                   {{ v.ip }}
           {% endif %}
           {% endfor %} 
               }
 
               virtual_ipaddress {
-                  {{ project_config.k8s.vip }}
+                  {{ config.k8s.vip }}
               }
 
               track_script {
@@ -286,9 +286,12 @@
               errorfile 503 /etc/haproxy/errors/503.http
               errorfile 504 /etc/haproxy/errors/504.http
 
-          frontend http-frontend
+          frontend traefik-http-frontend
               bind 0.0.0.0:80
-              redirect scheme https if !{ ssl_fc }
+              mode tcp
+              option tcplog
+              tcp-request inspect-delay 5s
+              default_backend traefik-lb
 
           frontend k8s-api
               bind 0.0.0.0:443
@@ -296,7 +299,7 @@
               option tcplog
               tcp-request inspect-delay 5s
               tcp-request content accept if { req.ssl_hello_type 1 }
-              use_backend traefik-lb if { req.ssl_sni -m found } !{ req.ssl_sni -i k8s-api.{{ project_config.virtual.domain }} }
+              use_backend traefik-tls-lb if { req.ssl_sni -m found } !{ req.ssl_sni -i k8s-api.{{ config.virtual.domain }} }
               default_backend k8s-api
 
           backend k8s-api
@@ -305,7 +308,7 @@
               option tcp-check
               balance roundrobin
               default-server inter 10s downinter 5s rise 2 fall 2 slowstart 60s maxconn 250 maxqueue 256 weight 100
-          {% for k, v in project_config.virtual.nodes | dictsort %}
+          {% for k, v in config.virtual.nodes | dictsort %}
               server k8s-api-{{ loop.index }} {{ v.ip }}:6443 check
           {% endfor %}
 
@@ -315,8 +318,18 @@
               option tcp-check
               balance roundrobin
               default-server inter 10s downinter 5s rise 2 fall 2 slowstart 60s maxconn 250 maxqueue 256 weight 100
-          {% for k, v in project_config.virtual.nodes | dictsort %}
-              server traefik-{{ loop.index }} {{ v.ip }}:{{ project_config.k8s.services.traefik.nodePort.https }} check
+          {% for k, v in config.virtual.nodes | dictsort %}
+              server traefik-{{ loop.index }} {{ v.ip }}:{{ config.k8s.services.traefik.nodePort.http }} check
+          {% endfor %}
+
+          backend traefik-tls-lb
+              mode tcp
+              option tcplog
+              option tcp-check
+              balance roundrobin
+              default-server inter 10s downinter 5s rise 2 fall 2 slowstart 60s maxconn 250 maxqueue 256 weight 100
+          {% for k, v in config.virtual.nodes | dictsort %}
+              server traefik-{{ loop.index }} {{ v.ip }}:{{ config.k8s.services.traefik.nodePort.https }} check
           {% endfor %}
       notify: Restart HAProxy service
 
@@ -344,7 +357,7 @@
           ExecStart=/usr/local/bin/hyperkube kubelet \
             --cloud-provider='' \
             --hairpin-mode=hairpin-veth \
-            --address={{ project_config.virtual.nodes[ansible_hostname].ip }} \
+            --address={{ config.virtual.nodes[ansible_hostname].ip }} \
             --anonymous-auth=false \
             --authentication-token-webhook=true \
             --allow-privileged=true \
@@ -352,20 +365,20 @@
             --cgroup-root= \
             --runtime-cgroups=/systemd/system.slice \
             --kubelet-cgroups=/systemd/system.slice \
-            --cluster-dns={{ project_config.k8s.services.coredns.ip }} \
-            --cluster-domain={{ project_config.k8s.domain }} \
+            --cluster-dns={{ config.k8s.services.coredns.ip }} \
+            --cluster-domain={{ config.k8s.domain }} \
             --eviction-hard='memory.available<100Mi,nodefs.available<10%,nodefs.inodesFree<5%,imagefs.available<10%,imagefs.inodesFree<5%' \
             --kubeconfig=/var/lib/kubelet/kubeconfig \
             --pod-manifest-path=/etc/kubernetes/manifests \
             --register-node=true \
             --container-runtime=docker \
             --docker=unix:///var/run/docker.sock \
-            --tls-cert-file='{{ project_config.srvkube.guest }}/{{ ansible_hostname }}-worker.pem' \
-            --tls-private-key-file='{{ project_config.srvkube.guest }}/{{ ansible_hostname }}-worker-key.pem' \
-            --client-ca-file='{{ project_config.srvkube.guest }}/ca.pem' \
+            --tls-cert-file='{{ config.srvkube.guest }}/{{ ansible_hostname }}-worker.pem' \
+            --tls-private-key-file='{{ config.srvkube.guest }}/{{ ansible_hostname }}-worker-key.pem' \
+            --client-ca-file='{{ config.srvkube.guest }}/ca.pem' \
             --cni-bin-dir=/etc/kubernetes/cni/net.d \
             --network-plugin='' \
-            --node-ip={{ project_config.virtual.nodes[ansible_hostname].ip }} \
+            --node-ip={{ config.virtual.nodes[ansible_hostname].ip }} \
             --feature-gates=PersistentLocalVolumes=true \
             --fail-swap-on=false \
             --serialize-image-pulls=false \
@@ -406,26 +419,26 @@
           KillMode=process
           ExecStart=/usr/local/bin/hyperkube kube-apiserver \
             --bind-address=0.0.0.0 \
-            --advertise-address={{ project_config.virtual.nodes[ansible_hostname].ip }} \
+            --advertise-address={{ config.virtual.nodes[ansible_hostname].ip }} \
             --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,NodeRestriction \
             --allow-privileged=true \
-            --apiserver-count={{ project_config.virtual.nodes | length }} \
-            --etcd-servers={% set c = [] %}{% for k, v in project_config.virtual.nodes | dictsort %}{% set d = c.append('http://' + k + '.' + project_config.virtual.domain + ':4001') %}{% endfor %}{{ c | join(',') }} \
+            --apiserver-count={{ config.virtual.nodes | length }} \
+            --etcd-servers={% set c = [] %}{% for k, v in config.virtual.nodes | dictsort %}{% set d = c.append('http://' + k + '.' + config.virtual.domain + ':4001') %}{% endfor %}{{ c | join(',') }} \
             --kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP,LegacyHostIP \
-            --service-node-port-range={{ project_config.k8s.service.node_port_range }} \
+            --service-node-port-range={{ config.k8s.service.node_port_range }} \
             --secure-port=6443 \
             --insecure-port=8080 \
-            --service-cluster-ip-range={{ project_config.k8s.service.range }} \
+            --service-cluster-ip-range={{ config.k8s.service.range }} \
             --runtime-config=api/all=true,batch/v2alpha1=true,authentication.k8s.io/v1beta1=true,authorization.k8s.io/v1beta1=true,rbac.authorization.k8s.io/v1beta1=true,apps/v1beta2=true,extensions/v1beta1=true,extensions/v1beta1/networkpolicies=true \
             --feature-gates=PersistentLocalVolumes=true,ExpandPersistentVolumes=true,MountPropagation=true,PodPriority=true \
             --anonymous-auth=false \
             --authorization-mode=Node,RBAC \
-            --client-ca-file='{{ project_config.srvkube.guest }}/ca.pem' \
-            --tls-cert-file='{{ project_config.srvkube.guest }}/apiserver.pem' \
-            --tls-private-key-file='{{ project_config.srvkube.guest }}/apiserver-key.pem' \
-            --kubelet-certificate-authority='{{ project_config.srvkube.guest }}/ca.pem' \
-            --kubelet-client-certificate='{{ project_config.srvkube.guest }}/{{ ansible_hostname }}-worker.pem' \
-            --kubelet-client-key='{{ project_config.srvkube.guest }}/{{ ansible_hostname }}-worker-key.pem' \
+            --client-ca-file='{{ config.srvkube.guest }}/ca.pem' \
+            --tls-cert-file='{{ config.srvkube.guest }}/apiserver.pem' \
+            --tls-private-key-file='{{ config.srvkube.guest }}/apiserver-key.pem' \
+            --kubelet-certificate-authority='{{ config.srvkube.guest }}/ca.pem' \
+            --kubelet-client-certificate='{{ config.srvkube.guest }}/{{ ansible_hostname }}-worker.pem' \
+            --kubelet-client-key='{{ config.srvkube.guest }}/{{ ansible_hostname }}-worker-key.pem' \
             --log-dir=/var/log/kubernetes \
             --logtostderr=false \
             --v=2
@@ -463,17 +476,17 @@
           ExecStart=/usr/local/bin/hyperkube controller-manager \
             --cloud-provider='' \
             --allocate-node-cidrs=true \
-            --cluster-cidr={{ project_config.k8s.pod.network }} \
-            --cluster-name=k8s.{{ project_config.virtual.domain }} \
-            --service-cluster-ip-range={{ project_config.k8s.service.range }} \
+            --cluster-cidr={{ config.k8s.pod.network }} \
+            --cluster-name=k8s.{{ config.virtual.domain }} \
+            --service-cluster-ip-range={{ config.k8s.service.range }} \
             --leader-elect=true \
-            --root-ca-file='{{ project_config.srvkube.guest }}/ca.pem' \
+            --root-ca-file='{{ config.srvkube.guest }}/ca.pem' \
             --configure-cloud-routes=false \
             --kubeconfig=/var/lib/kube-controller-manager/kubeconfig \
-            --service-account-private-key-file='{{ project_config.srvkube.guest }}/apiserver-key.pem' \
+            --service-account-private-key-file='{{ config.srvkube.guest }}/apiserver-key.pem' \
             --use-service-account-credentials=true \
-            --cluster-signing-cert-file='{{ project_config.srvkube.guest }}/ca.pem' \
-            --cluster-signing-key-file='{{ project_config.srvkube.guest }}/apiserver-key.pem' \
+            --cluster-signing-cert-file='{{ config.srvkube.guest }}/ca.pem' \
+            --cluster-signing-key-file='{{ config.srvkube.guest }}/apiserver-key.pem' \
             --feature-gates=PersistentLocalVolumes=true,ExpandPersistentVolumes=true,PodPriority=true \
             --log-dir=/var/log/kubernetes \
             --logtostderr=false \
@@ -514,7 +527,7 @@
             --conntrack-max-per-core=131072 \
             --proxy-mode=iptables \
             --resource-container="" \
-            --cluster-cidr={{ project_config.k8s.pod.network }} \
+            --cluster-cidr={{ config.k8s.pod.network }} \
             --log-dir=/var/log/kubernetes \
             --logtostderr=false \
             --v=2

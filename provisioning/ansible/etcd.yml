@@ -36,12 +36,12 @@
     - name: Download and install etcd binaries
       block:
         - get_url: 
-            url: https://github.com/coreos/etcd/releases/download/v{{ project_config.k8s.etcd.version }}/etcd-v{{ project_config.k8s.etcd.version }}-linux-amd64.tar.gz
-            dest: /tmp/etcd-v{{ project_config.k8s.etcd.version }}-linux-amd64.tar.gz
+            url: https://github.com/coreos/etcd/releases/download/v{{ config.k8s.etcd.version }}/etcd-v{{ config.k8s.etcd.version }}-linux-amd64.tar.gz
+            dest: /tmp/etcd-v{{ config.k8s.etcd.version }}-linux-amd64.tar.gz
             validate_certs: no
           changed_when: false
         - unarchive:
-            src: /tmp/etcd-v{{ project_config.k8s.etcd.version }}-linux-amd64.tar.gz
+            src: /tmp/etcd-v{{ config.k8s.etcd.version }}-linux-amd64.tar.gz
             dest: /tmp
           changed_when: false
         - copy:
@@ -50,14 +50,14 @@
             mode: 0755
           notify: Restart etcd service
           with_fileglob:
-            - /tmp/etcd-v{{ project_config.k8s.etcd.version }}-linux-amd64/etcd*
+            - /tmp/etcd-v{{ config.k8s.etcd.version }}-linux-amd64/etcd*
         - file:
             path: "{{ item }}"
             state: absent
           with_items:
-            - /tmp/etcd-v{{ project_config.k8s.etcd.version }}-linux-amd64.tar.gz
-            - /tmp/etcd-v{{ project_config.k8s.etcd.version }}-linux-amd64
-      when: not sym.stat.exists or etcd_actual_version.stdout is not search(project_config.k8s.etcd.version)
+            - /tmp/etcd-v{{ config.k8s.etcd.version }}-linux-amd64.tar.gz
+            - /tmp/etcd-v{{ config.k8s.etcd.version }}-linux-amd64
+      when: not sym.stat.exists or etcd_actual_version.stdout is not search(config.k8s.etcd.version)
 
     - name: Create etcd systemd service unit
       copy:
@@ -75,23 +75,23 @@
           ExecStart=/usr/local/bin/etcd \
             --name {{ ansible_hostname }} \
             --data-dir /var/lib/etcd \
-            --initial-advertise-peer-urls http://{{ ansible_hostname }}.{{ project_config.virtual.domain }}:2380 \
+            --initial-advertise-peer-urls http://{{ ansible_hostname }}.{{ config.virtual.domain }}:2380 \
             --listen-peer-urls http://0.0.0.0:2380 \
             --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
-            --advertise-client-urls http://{{ ansible_hostname }}.{{ project_config.virtual.domain }}:2379,http://{{ ansible_hostname }}.{{ project_config.virtual.domain }}:4001 \
+            --advertise-client-urls http://{{ ansible_hostname }}.{{ config.virtual.domain }}:2379,http://{{ ansible_hostname }}.{{ config.virtual.domain }}:4001 \
             --initial-cluster-token etcd-cluster-1 \
-            --initial-cluster {% set c = [] %}{% for k, v in project_config.virtual.nodes | dictsort %}{% set d = c.append(k + '=http://' + k + '.' + project_config.virtual.domain + ':2380') %}{% endfor %}{{ c | join(',') }} \
+            --initial-cluster {% set c = [] %}{% for k, v in config.virtual.nodes | dictsort %}{% set d = c.append(k + '=http://' + k + '.' + config.virtual.domain + ':2380') %}{% endfor %}{{ c | join(',') }} \
             --initial-cluster-state new \
             --heartbeat-interval 1000 \
             --election-timeout 5000 \
             --client-cert-auth \
-            --trusted-ca-file '{{ project_config.srvkube.guest }}/ca.pem' \
-            --cert-file '{{ project_config.srvkube.guest }}/{{ ansible_hostname }}-etcd.crt' \
-            --key-file '{{ project_config.srvkube.guest }}/{{ ansible_hostname }}-etcd.key' \
+            --trusted-ca-file '{{ config.srvkube.guest }}/ca.pem' \
+            --cert-file '{{ config.srvkube.guest }}/{{ ansible_hostname }}-etcd.crt' \
+            --key-file '{{ config.srvkube.guest }}/{{ ansible_hostname }}-etcd.key' \
             --peer-client-cert-auth \
-            --peer-trusted-ca-file '{{ project_config.srvkube.guest }}/ca.pem' \
-            --peer-cert-file '{{ project_config.srvkube.guest }}/{{ ansible_hostname }}-etcd.crt' \
-            --peer-key-file '{{ project_config.srvkube.guest }}/{{ ansible_hostname }}-etcd.key'
+            --peer-trusted-ca-file '{{ config.srvkube.guest }}/ca.pem' \
+            --peer-cert-file '{{ config.srvkube.guest }}/{{ ansible_hostname }}-etcd.crt' \
+            --peer-key-file '{{ config.srvkube.guest }}/{{ ansible_hostname }}-etcd.key'
 
           [Install]
           WantedBy=multi-user.target

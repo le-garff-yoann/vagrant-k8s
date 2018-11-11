@@ -48,6 +48,7 @@
       "traefik": {
         "version": "1.7.4",
         "nodePort": {
+          "http": "30001",
           "https": "30002"
         }
       }

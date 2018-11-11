@@ -9,7 +9,21 @@ This is a template for deploying a k8s cluster.
 
 ## Setup
 
+* With self signed certificates for `Ingress`
+
 ```bash
+bash setup.sh
+```
+
+* With [ACME (Let's Encrypt)](https://docs.traefik.io/configuration/acme) for `Ingress`
+
+```bash
+# export \
+#   VAGRANT_K8S_ACME_CASERVER=https://acme-staging-v02.api.letsencrypt.org/directory
+
+export \
+  VAGRANT_K8S_ACME_EMAIL=used4registration@gmail.com
+
 bash setup.sh
 ```
 

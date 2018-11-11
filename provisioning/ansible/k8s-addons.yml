@@ -68,7 +68,7 @@
                       errors
                       log
                       health
-                      kubernetes {{ project_config.k8s.domain }} {{ project_config.k8s.service.range }} {{ project_config.k8s.pod.network }} {
+                      kubernetes {{ config.k8s.domain }} {{ config.k8s.service.range }} {{ config.k8s.pod.network }} {
                         pods insecure
                         upstream /etc/resolv.conf
                       }
@@ -92,7 +92,7 @@
               spec:
                 selector:
                   app: coredns
-                clusterIP: {{ project_config.k8s.services.coredns.ip }}
+                clusterIP: {{ config.k8s.services.coredns.ip }}
                 ports:
                   - name: dns
                     port: 53
@@ -115,11 +115,7 @@
                   kubernetes.io/cluster-service: "true"
                   kubernetes.io/name: CoreDNS
               spec:
-                replicas: 1
-                strategy:
-                  rollingUpdate:
-                    maxSurge: 1
-                    maxUnavailable: 1
+                replicas: 2
                 selector:
                   matchLabels:
                     app: coredns
@@ -148,8 +144,7 @@
                               topologyKey: kubernetes.io/hostname
                     containers:
                       - name: coredns
-                        image: coredns/coredns:{{ project_config.k8s.services.coredns.version }}
-                        imagePullPolicy: IfNotPresent
+                        image: coredns/coredns:{{ config.k8s.services.coredns.version }}
                         args:
                           - -conf
                           - /etc/coredns/Corefile
@@ -194,7 +189,7 @@
             state: file
           register: tempfile
           changed_when: false
-        - shell: kubectl create secret generic traefik-cert --from-file='{{ project_config.srvkube.guest }}/traefik.crt' --from-file='{{ project_config.srvkube.guest }}/traefik.key' --namespace=kube-system --dry-run -o yaml | kubectl apply -f -
+        - shell: kubectl create secret generic traefik-cert --from-file='{{ config.srvkube.guest }}/traefik.crt' --from-file='{{ config.srvkube.guest }}/traefik.key' --namespace=kube-system --dry-run -o yaml | kubectl apply -f -
           changed_when: false
         - copy:
             dest: "{{ tempfile.path }}"
@@ -254,17 +249,25 @@
                 namespace: kube-system
               data:
                 traefik.toml: |
-                  defaultEntryPoints = ["https"]
+                  defaultEntryPoints = ["http", "https"]
                   insecureSkipVerify = true
                   logLevel = "INFO"
 
                   [entryPoints]
+                    [entryPoints.http]
+                      address = ":80"
+                      compress = true
+                      [entryPoints.http.redirect]
+                      entryPoint = "https"
                     [entryPoints.https]
                     address = ":443"
+                    compress = true
                     [entryPoints.https.tls]
+              {% if not config.acme.email %}
                     [[entryPoints.https.tls.certificates]]
                     CertFile = "/ssl/traefik.crt"
                     KeyFile = "/ssl/traefik.key"
+              {% endif %}
 
                   [kubernetes]
 
@@ -272,6 +275,20 @@
                   address = ":8080"
                   readOnly = true
 
+              {% if config.acme.email %}
+                  # [etcd] # https://github.com/containous/traefik/issues/2712
+                  #   endpoint = "{% set c = [] %}{% for k, v in config.virtual.nodes | dictsort %}{% set d = c.append(v.ip + ':4001') %}{% endfor %}{{ c | first }}"
+
+                  [acme]
+                    email = "{{ config.acme.email }}"
+                    storage = "acme.json"
+                    # storage = "traefik/acme/account" # https://github.com/containous/traefik/issues/2712
+                    entryPoint = "https"
+                    OnHostRule = true
+                    caServer = "{{ config.acme.caServer }}"
+                    [acme.httpChallenge]
+                      entryPoint = "http"
+              {% endif %}
               ---
               kind: Service
               apiVersion: v1
@@ -282,10 +299,14 @@
                 selector:
                   app: traefik
                 ports:
+                  - name: http
+                    protocol: TCP
+                    port: 80
+                    nodePort: {{ config.k8s.services.traefik.nodePort.http }}
                   - name: https
                     protocol: TCP
                     port: 443
-                    nodePort: {{ project_config.k8s.services.traefik.nodePort.https }}
+                    nodePort: {{ config.k8s.services.traefik.nodePort.https }}
                 type: NodePort
 
               ---
@@ -326,16 +347,10 @@
                 labels:
                   app: traefik
               spec:
-                replicas: 1
-                revisionHistoryLimit: 1
+                replicas: 1 # https://github.com/containous/traefik/issues/2712
                 selector:
                   matchLabels:
                     app: traefik
-                strategy:
-                  type: RollingUpdate
-                  rollingUpdate:
-                    maxUnavailable: 0
-                    maxSurge: 1
                 template:
                   metadata:
                     labels:
@@ -352,9 +367,8 @@
                         secret:
                           secretName: traefik-cert
                     containers:
-                      - image: traefik:{{ project_config.k8s.services.traefik.version }}
+                      - image: traefik:{{ config.k8s.services.traefik.version }}
                         name: traefik
-                        imagePullPolicy: Always
                         resources:
                           limits:
                             cpu: 200m
@@ -368,6 +382,7 @@
                           - name: "ssl"
                             mountPath: "/ssl"
                         ports:
+                          - containerPort: 80
                           - containerPort: 443
                           - containerPort: 8080
                         args:

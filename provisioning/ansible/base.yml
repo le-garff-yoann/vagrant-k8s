@@ -19,18 +19,18 @@
     - name: Add nodes to /etc/hosts
       lineinfile:
         dest: /etc/hosts
-        line: "{{ item.value.ip }} {{ item.key }}.{{ project_config.virtual.domain }} {{ item.key }}"
-      with_dict: "{{ project_config.virtual.nodes }}"
+        line: "{{ item.value.ip }} {{ item.key }}.{{ config.virtual.domain }} {{ item.key }}"
+      with_dict: "{{ config.virtual.nodes }}"
 
     - name: Add k8s-etcd and k8s-api to /etc/hosts
       lineinfile:
         dest: /etc/hosts
-        line: "{{ item.ip }} {{ item.hostname }}.{{ project_config.virtual.domain }} {{ item.hostname }}"
+        line: "{{ item.ip }} {{ item.hostname }}.{{ config.virtual.domain }} {{ item.hostname }}"
       with_items:
         - hostname: k8s-etcd
-          ip: "{{ project_config.k8s.vip }}"
+          ip: "{{ config.k8s.vip }}"
         - hostname: k8s-api
-          ip: "{{ project_config.k8s.vip }}"
+          ip: "{{ config.k8s.vip }}"
 
     - name: Configure /etc/resolv.conf
       lineinfile:
@@ -38,4 +38,4 @@
         line: "{{ item }}"
       with_items:
         - nameserver 8.8.8.8
-        - search {{ project_config.virtual.domain }}
+        - search {{ config.virtual.domain }}

@@ -3,14 +3,16 @@
 
 require 'json'
 
-Vagrant.configure('2') do |config|
+Vagrant.configure('2') do |vconfig|
   current_dir = File.expand_path(File.dirname(__FILE__))
-  project_config = JSON.parse(File.read("#{current_dir}/config.json"))
+
+  config = JSON.parse(File.read("#{current_dir}/config.json"))
+  acme_config = JSON.parse(File.read("#{current_dir}acme.config.json")) rescue nil
 
   nat_done = false
 
-  project_config['virtual']['nodes'].each do |nodename, node_config|
-    config.vm.define nodename do |node|
+  config['virtual']['nodes'].each do |nodename, node_config|
+    vconfig.vm.define nodename do |node|
       node.vm.box = 'le-garff-yoann/debian9-compose'
       node.vm.box_version = '1.0.0'
   
@@ -28,21 +30,24 @@ Vagrant.configure('2') do |config|
       nat_done = true
 
       node.vm.provision 'shell', privileged: true,
-        inline: "mkdir -p '#{project_config['srvkube']['guest']}' && chown vagrant:vagrant '#{project_config['srvkube']['guest']}'" unless ENV.key?('VAGRANT_K8S_PROVISIONING_STEP')
+        inline: "mkdir -p '#{config['srvkube']['guest']}' && chown vagrant:vagrant '#{config['srvkube']['guest']}'" unless ENV.key?('VAGRANT_K8S_PROVISIONING_STEP')
 
       node.vm.provision 'file',
-        source: "#{current_dir}/#{project_config['srvkube']['host']}",
-        destination: project_config['srvkube']['guest']
+        source: "#{current_dir}/#{config['srvkube']['host']}",
+        destination: config['srvkube']['guest']
 
       node.vm.provision 'shell', privileged: true,
-        inline: "chmod -R g+r #{project_config['srvkube']['guest']}"
+        inline: "chmod -R g+r #{config['srvkube']['guest']}"
    
       if File.exists?("#{current_dir}/provisioning/ansible/#{ENV['VAGRANT_K8S_PROVISIONING_STEP']}.yml")
         node.vm.provision 'ansible_local' do |ansible|
           ansible.playbook = "provisioning/ansible/#{ENV['VAGRANT_K8S_PROVISIONING_STEP']}.yml"
 
           ansible.extra_vars = {
-            project_config: project_config
+            config: config.merge({ acme: {
+              email: ENV['VAGRANT_K8S_ACME_EMAIL'],
+              caServer: ENV['VAGRANT_K8S_ACME_CASERVER'] || 'https://acme-v02.api.letsencrypt.org/directory'
+            }})
           }    
 
           ansible.become = true

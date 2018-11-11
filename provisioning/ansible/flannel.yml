@@ -47,7 +47,7 @@
 
     - name: Set flannel configuration in etcd for flannel master node
       command: |
-        etcdctl set /coreos.com/network/config '{ "Network": "{{ project_config.k8s.pod.network }}", "SubnetLen": {{ project_config.k8s.flannel.subnetlen }}, "Backend": { "Type": "vxlan" }}'
+        etcdctl set /coreos.com/network/config '{ "Network": "{{ config.k8s.pod.network }}", "SubnetLen": {{ config.k8s.flannel.subnetlen }}, "Backend": { "Type": "vxlan" }}'
       changed_when: false
 
     - stat:
@@ -61,11 +61,11 @@
 
     - name: Download and install flanneld binary
       get_url: 
-        url: https://github.com/coreos/flannel/releases/download/v{{ project_config.k8s.flannel.version }}/flanneld-amd64
+        url: https://github.com/coreos/flannel/releases/download/v{{ config.k8s.flannel.version }}/flanneld-amd64
         dest: /usr/local/bin/flanneld
         validate_certs: no
       notify: Restart flannel service
-      when: not sym.stat.exists or flannel_actual_version.stdout is not search("v" + project_config.k8s.flannel.version)
+      when: not sym.stat.exists or flannel_actual_version.stdout is not search("v" + config.k8s.flannel.version)
 
     - name: Set permissions on flanneld binary
       file:
@@ -89,10 +89,10 @@
           Restart=always
           RestartSec=5
           ExecStart=/usr/local/bin/flanneld \
-            -etcd-endpoints={% set c = [] %}{% for k, v in project_config.virtual.nodes | dictsort %}{% set d = c.append('http://' + k + '.' + project_config.virtual.domain + ':4001') %}{% endfor %}{{ c | join(',') }} \
+            -etcd-endpoints={% set c = [] %}{% for k, v in config.virtual.nodes | dictsort %}{% set d = c.append('http://' + k + '.' + config.virtual.domain + ':4001') %}{% endfor %}{{ c | join(',') }} \
             -ip-masq=true \
             -iface=enp0s8 \
-            -public-ip={{ project_config.virtual.nodes[ansible_hostname].ip }} \
+            -public-ip={{ config.virtual.nodes[ansible_hostname].ip }} \
             -subnet-dir=/var/lib/flanneld \
             -subnet-file=/var/lib/flanneld/subnet.env \
             -logtostderr=true
