@@ -1,0 +1,6 @@
+.vagrant/
+ssh.EXE.stackdump
+*.log
+compose.retry
+staging/
+*.retry

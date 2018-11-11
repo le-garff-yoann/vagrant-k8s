@@ -1,0 +1,56 @@
+{
+  "srvkube": {
+    "host": "staging/",
+    "guest": "/srv/kubernetes"
+  },
+  "virtual": {
+    "domain": "virtual.local",
+    "nodes": {
+      "k8s01": {
+        "ip": "192.168.0.151",
+        "cpus": "2",
+        "memory": "1024"
+      },
+      "k8s02": {
+        "ip": "192.168.0.152",
+        "cpus": "2",
+        "memory": "1024"
+      },
+      "k8s03": {
+        "ip": "192.168.0.153",
+        "cpus": "2",
+        "memory": "1024"
+      }
+    }
+  },
+  "k8s": {
+    "version": "1.10.9",
+    "vip": "192.168.0.150",
+    "default_route": "192.168.0.1",
+    "domain": "cluster.local",
+    "etcd": {
+      "version": "3.1.20"
+    },
+    "flannel": {
+      "version": "0.7.0",
+      "subnetlen": "24"
+    },
+    "pod": {
+      "network": "10.2.0.0/16"
+    },
+    "service": {
+      "range": "10.3.0.0/24",
+      "node_port_range": "30000-40000"
+    },
+    "services": {
+      "kubeapi": { "ip": "10.3.0.1" },
+      "coredns": { "ip": "10.3.0.10", "version": "1.1.4" },
+      "traefik": {
+        "version": "1.7.4",
+        "nodePort": {
+          "https": "30002"
+        }
+      }
+    }
+  }
+}

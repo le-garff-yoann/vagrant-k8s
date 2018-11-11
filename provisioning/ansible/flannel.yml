@@ -1,0 +1,111 @@
+---
+
+- hosts: all
+
+  handlers:
+    - name: Restart flannel service
+      systemd:
+        name: flanneld
+        daemon_reload: yes
+        state: restarted
+    - name: Restart docker service
+      systemd:
+        name: docker
+        daemon_reload: yes
+        state: restarted
+
+  tasks:
+    - name: Configure Execstart in /lib/systemd/system/docker.service
+      replace:
+        dest: /lib/systemd/system/docker.service
+        regexp: "^ExecStart=/usr/bin/dockerd(.*)-H fd://$"
+        replace: 'ExecStart=/usr/bin/dockerd\1-H fd:// {{ item }}'
+      notify: Restart docker service
+      with_items:
+        - "--storage-driver=overlay2 --bip=${FLANNEL_SUBNET} --mtu=${FLANNEL_MTU} --iptables=false --ip-masq=false --ip-forward=true"
+
+    - name: Configure EnvronmentFile in /lib/systemd/system/docker.service
+      lineinfile:
+        dest: /lib/systemd/system/docker.service
+        line: "{{item}}"
+        insertafter: '^\[Service\]$'
+      notify: Restart docker service
+      with_items:
+        - EnvironmentFile=/var/lib/flanneld/subnet.env
+
+    - name: Start docker service
+      systemd:
+        name: docker
+        daemon_reload: yes
+        enabled: yes
+        state: started
+
+    - name: Configure iptables FORWARD ACCEPT
+      iptables:
+        chain: FORWARD
+        policy: ACCEPT
+
+    - name: Set flannel configuration in etcd for flannel master node
+      command: |
+        etcdctl set /coreos.com/network/config '{ "Network": "{{ project_config.k8s.pod.network }}", "SubnetLen": {{ project_config.k8s.flannel.subnetlen }}, "Backend": { "Type": "vxlan" }}'
+      changed_when: false
+
+    - stat:
+        path: /usr/local/bin/flanneld
+      register: sym
+
+    - shell: /usr/local/bin/flanneld --version
+      register: flannel_actual_version
+      changed_when: false
+      when: sym.stat.exists
+
+    - name: Download and install flanneld binary
+      get_url: 
+        url: https://github.com/coreos/flannel/releases/download/v{{ project_config.k8s.flannel.version }}/flanneld-amd64
+        dest: /usr/local/bin/flanneld
+        validate_certs: no
+      notify: Restart flannel service
+      when: not sym.stat.exists or flannel_actual_version.stdout is not search("v" + project_config.k8s.flannel.version)
+
+    - name: Set permissions on flanneld binary
+      file:
+        path: /usr/local/bin/flanneld
+        state: file
+        mode: 0755
+
+    - name: Setup flannel systemd service unit
+      copy:
+        dest: /lib/systemd/system/flanneld.service
+        content: |
+          Description=Network fabric for containers
+          Documentation=https://github.com/coreos/flannel
+          After=network.target
+          After=network-online.target
+          Wants=network-online.target
+          After=etcd.service
+          Before=docker.service
+
+          [Service]
+          Restart=always
+          RestartSec=5
+          ExecStart=/usr/local/bin/flanneld \
+            -etcd-endpoints={% set c = [] %}{% for k, v in project_config.virtual.nodes | dictsort %}{% set d = c.append('http://' + k + '.' + project_config.virtual.domain + ':4001') %}{% endfor %}{{ c | join(',') }} \
+            -ip-masq=true \
+            -iface=enp0s8 \
+            -public-ip={{ project_config.virtual.nodes[ansible_hostname].ip }} \
+            -subnet-dir=/var/lib/flanneld \
+            -subnet-file=/var/lib/flanneld/subnet.env \
+            -logtostderr=true
+
+          [Install]
+          WantedBy=multi-user.target
+      notify:
+        - Restart flannel service
+        - Restart docker service
+
+    - name: Start flannel service
+      systemd:
+        name: flanneld
+        daemon_reload: yes
+        enabled: yes
+        state: started
