@@ -34,7 +34,7 @@ bash setup.sh
 ```bash
 vagrant ssh k8s01
 
-kubectl apply -f - <<EOF
+sudo kubectl apply -f - <<EOF
 ---
 apiVersion: v1
 kind: Service
