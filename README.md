@@ -88,7 +88,22 @@ EOF
 
 exit
 
-curl -Lk https://my-nginx.default.mydomain.io # Welcome to nginx! 
+curl -Lk https://nginx-1.default.mydomain.io # Welcome to nginx! 
+```
+
+### eg. Wordpress with Helm
+
+```bash
+vagrant ssh k8s01
+
+sudo helm install stable/wordpress \
+  --name wordpress-1 \
+  --set persistence.enabled=false,mariadb.master.persistence.enabled=false,serviceType=ClusterIP,ingress.enabled=true,ingress.hosts[0].name=my-wordpress.default.mydomain.io \
+  --wait
+
+exit
+
+curl -Lk https://wordpress-1.default.mydomain.io # Wordpress up and running :)
 ```
 
 ## Cleanup
