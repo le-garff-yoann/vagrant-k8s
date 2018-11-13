@@ -39,48 +39,48 @@ sudo kubectl apply -f - <<EOF
 apiVersion: v1
 kind: Service
 metadata:
-  name: my-nginx
+  name: nginx-1
   labels:
-    app: my-nginx
+    app: nginx-1
 spec:
   ports:
     - port: 80
       protocol: TCP
   selector:
-    app: my-nginx
+    app: nginx-1
 
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
-  name: my-nginx
+  name: nginx-1
 spec:
   rules:
-    - host: my-nginx.default.mydomain.io
+    - host: nginx-1.default.mydomain.io
       http:
         paths:
           - path: /
             backend:
-              serviceName: my-nginx
+              serviceName: nginx-1
               servicePort: 80
 
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: my-nginx
+  name: nginx-1
 spec:
   selector:
     matchLabels:
-      app: my-nginx
+      app: nginx-1
   replicas: 2
   template:
     metadata:
       labels:
-        app: my-nginx
+        app: nginx-1
     spec:
       containers:
-        - name: my-nginx
+        - name: nginx-1
           image: nginx
           ports:
             - containerPort: 80
