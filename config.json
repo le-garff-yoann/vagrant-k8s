@@ -1,6 +1,6 @@
 {
   "srvkube": {
-    "host": "staging/",
+    "host": ".staging",
     "guest": "/srv/kubernetes"
   },
   "virtual": {

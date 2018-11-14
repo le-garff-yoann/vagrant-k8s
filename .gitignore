@@ -2,5 +2,5 @@
 ssh.EXE.stackdump
 *.log
 compose.retry
-staging/
+.staging/
 *.retry
