@@ -186,7 +186,7 @@
     - name: Generate and apply nfs k8s manifest
       block:
         - file:
-            path: /vagrant/{{ config.k8s.services.nfs.hostBasedir }}
+            path: {{ config.k8s.services.nfs.hostPath }}
             state: directory
         - tempfile:
             state: file
@@ -288,7 +288,7 @@
             path: "{{ tempfile.path }}"
             state: absent
           changed_when: false
-      when: config.k8s.services.nfs.storage_node == ansible_hostname
+      when: config.k8s.services.nfs.storageNode == ansible_hostname
 
     - name: Generate and apply Traefik k8s manifest
       block:
@@ -384,7 +384,7 @@
 
               {% if config.acme.email %}
                   # [etcd] # https://github.com/containous/traefik/issues/2712
-                  #   endpoint = "{{ config.virtual.nodes[config.k8s.services.traefik.etcd_node].ip }}:4001"
+                  #   endpoint = "{{ config.virtual.nodes[config.k8s.services.traefik.etcdNode].ip }}:4001"
 
                   [acme]
                     email = "{{ config.acme.email }}"

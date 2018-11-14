@@ -26,7 +26,7 @@
   "k8s": {
     "version": "1.10.9",
     "vip": "192.168.0.150",
-    "default_route": "192.168.0.1",
+    "defaultRoute": "192.168.0.1",
     "domain": "cluster.local",
     "etcd": {
       "version": "3.1.20"
@@ -40,19 +40,19 @@
     },
     "service": {
       "range": "10.3.0.0/24",
-      "node_port_range": "30000-40000"
+      "nodePortRange": "30000-40000"
     },
     "services": {
       "kubeapi": { "ip": "10.3.0.1" },
       "coredns": { "ip": "10.3.0.10", "version": "1.1.4" },
       "nfs": {
-        "version": "1.0.8",
-        "storage_node": "k8s01",
-        "hostBasedir": ".nfs"
+        "version": "1.1.0-k8s1.10",
+        "storageNode": "k8s01",
+        "hostPath": "/srv/nfs"
       },
       "traefik": {
         "version": "1.7.4",
-        "etcd_node": "k8s01",
+        "etcdNode": "k8s01",
         "nodePort": {
           "http": "30001",
           "https": "30002"

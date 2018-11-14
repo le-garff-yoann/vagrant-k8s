@@ -425,7 +425,7 @@
             --apiserver-count={{ config.virtual.nodes | length }} \
             --etcd-servers={% set c = [] %}{% for k, v in config.virtual.nodes | dictsort %}{% set d = c.append('http://' + k + '.' + config.virtual.domain + ':4001') %}{% endfor %}{{ c | join(',') }} \
             --kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP,LegacyHostIP \
-            --service-node-port-range={{ config.k8s.service.node_port_range }} \
+            --service-node-port-range={{ config.k8s.service.nodePortRange }} \
             --secure-port=6443 \
             --insecure-port=8080 \
             --service-cluster-ip-range={{ config.k8s.service.range }} \

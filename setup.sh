@@ -43,7 +43,7 @@ DNS.6 = k8s-api
 DNS.7 = k8s-api.$virtual_domain
 IP.1 = 127.0.0.1
 IP.2 = $(cat $CONFFILE | jq -cr .k8s.vip)
-IP.3 = $(cat $CONFFILE | jq -cr .k8s.default_route)
+IP.3 = $(cat $CONFFILE | jq -cr .k8s.defaultRoute)
 IP.4 = $(cat $CONFFILE | jq -cr .k8s.services.kubeapi.ip)
 EOF
 
