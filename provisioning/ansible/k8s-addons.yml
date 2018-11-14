@@ -183,6 +183,113 @@
             state: absent
           changed_when: false
 
+    - name: Generate and apply nfs k8s manifest
+      block:
+        - file:
+            path: /vagrant/{{ config.k8s.services.nfs.hostBasedir }}
+            state: directory
+        - tempfile:
+            state: file
+          register: tempfile
+          changed_when: false
+        - copy:
+            dest: "{{ tempfile.path }}"
+            content: |
+              ---
+              kind: StorageClass
+              apiVersion: storage.k8s.io/v1
+              metadata:
+                name: nfs-dynamic
+                namespace: kube-system
+              provisioner: example.com/nfs
+
+              ---
+              kind: Service
+              apiVersion: v1
+              metadata:
+                name: nfs-provisioner
+                namespace: kube-system
+                labels:
+                  app: nfs-provisioner
+              spec:
+                ports:
+                  - name: nfs
+                    port: 2049
+                  - name: mountd
+                    port: 20048
+                  - name: rpcbind
+                    port: 111
+                  - name: rpcbind-udp
+                    port: 111
+                    protocol: UDP
+                selector:
+                  app: nfs-provisioner
+
+              ---
+              kind: Deployment
+              apiVersion: apps/v1beta1
+              metadata:
+                name: nfs-provisioner
+                namespace: kube-system
+              spec:
+                replicas: 1
+                strategy:
+                  type: Recreate
+                template:
+                  metadata:
+                    labels:
+                      app: nfs-provisioner
+                  spec:
+                    nodeSelector:
+                      kubernetes.io/hostname: "{{ ansible_hostname }}"
+                    containers:
+                      - name: nfs-provisioner
+                        image: quay.io/kubernetes_incubator/nfs-provisioner:v{{ config.k8s.services.nfs.version }}
+                        ports:
+                          - name: nfs
+                            containerPort: 2049
+                          - name: mountd
+                            containerPort: 20048
+                          - name: rpcbind
+                            containerPort: 111
+                          - name: rpcbind-udp
+                            containerPort: 111
+                            protocol: UDP
+                        securityContext:
+                          capabilities:
+                            add:
+                              - DAC_READ_SEARCH
+                              - SYS_RESOURCE
+                        args:
+                          - "-provisioner=example.com/nfs"
+                        env:
+                          - name: POD_IP
+                            valueFrom:
+                              fieldRef:
+                                fieldPath: status.podIP
+                          - name: SERVICE_NAME
+                            value: nfs-provisioner
+                          - name: POD_NAMESPACE
+                            valueFrom:
+                              fieldRef:
+                                fieldPath: metadata.namespace
+                        imagePullPolicy: "IfNotPresent"
+                        volumeMounts:
+                          - name: export-volume
+                            mountPath: /export
+                    volumes:
+                      - name: export-volume
+                        hostPath:
+                          path: /vagrant/{{ config.k8s.services.nfs.hostBasedir }}
+        - command: kubectl apply -f {{ tempfile.path }}
+          changed_when: false
+      always:
+        - file:
+            path: "{{ tempfile.path }}"
+            state: absent
+          changed_when: false
+      when: config.k8s.services.nfs.storage_node == ansible_hostname
+
     - name: Generate and apply Traefik k8s manifest
       block:
         - tempfile:
@@ -277,7 +384,7 @@
 
               {% if config.acme.email %}
                   # [etcd] # https://github.com/containous/traefik/issues/2712
-                  #   endpoint = "{% set c = [] %}{% for k, v in config.virtual.nodes | dictsort %}{% set d = c.append(v.ip + ':4001') %}{% endfor %}{{ c | first }}"
+                  #   endpoint = "{{ config.virtual.nodes[config.k8s.services.traefik.etcd_node].ip }}:4001"
 
                   [acme]
                     email = "{{ config.acme.email }}"
@@ -289,6 +396,7 @@
                     [acme.httpChallenge]
                       entryPoint = "http"
               {% endif %}
+
               ---
               kind: Service
               apiVersion: v1

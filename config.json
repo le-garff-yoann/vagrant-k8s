@@ -45,8 +45,14 @@
     "services": {
       "kubeapi": { "ip": "10.3.0.1" },
       "coredns": { "ip": "10.3.0.10", "version": "1.1.4" },
+      "nfs": {
+        "version": "1.0.8",
+        "storage_node": "k8s01",
+        "hostBasedir": ".nfs"
+      },
       "traefik": {
         "version": "1.7.4",
+        "etcd_node": "k8s01",
         "nodePort": {
           "http": "30001",
           "https": "30002"
