@@ -98,7 +98,7 @@ vagrant ssh k8s01
 
 sudo helm install stable/wordpress \
   --name wordpress-1 \
-  --set persistence.enabled=false,mariadb.master.persistence.enabled=false,serviceType=ClusterIP,ingress.enabled=true,ingress.hosts[0].name=wordpress-1.default.mydomain.io \
+  --set serviceType=ClusterIP,ingress.enabled=true,ingress.hosts[0].name=wordpress-1.default.mydomain.io \
   --wait
 
 exit
