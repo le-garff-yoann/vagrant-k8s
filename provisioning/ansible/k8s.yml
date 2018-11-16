@@ -286,7 +286,7 @@
               errorfile 503 /etc/haproxy/errors/503.http
               errorfile 504 /etc/haproxy/errors/504.http
 
-          {% if 'traefik' in features %}
+          {% if 'traefik' not in excluded_features %}
           frontend traefik-http-frontend
               bind 0.0.0.0:80
               mode tcp
@@ -301,7 +301,7 @@
               option tcplog
               tcp-request inspect-delay 5s
               tcp-request content accept if { req.ssl_hello_type 1 }
-          {% if 'traefik' in features %}
+          {% if 'traefik' not in excluded_features %}
               use_backend traefik-tls-lb if { req.ssl_sni -m found } !{ req.ssl_sni -i k8s-api.{{ config.virtual.domain }} }
           {% endif %}
               default_backend k8s-api
@@ -316,7 +316,7 @@
               server k8s-api-{{ loop.index }} {{ v.ip }}:6443 check
           {% endfor %}
 
-          {% if 'traefik' in features %}
+          {% if 'traefik' not in excluded_features %}
           backend traefik-lb
               mode tcp
               option tcplog

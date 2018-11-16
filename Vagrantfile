@@ -39,12 +39,10 @@ Vagrant.configure('2') do |vconfig|
       node.vm.provision 'shell', privileged: true,
         inline: "chmod -R g+r #{config['srvkube']['guest']}"
 
-      features = []
+      excluded_features = ENV['VAGRANT_K8S_EXCLUDE_ADDONS'].split(/\s+/) rescue []
 
       if File.exists?("#{current_dir}/provisioning/ansible/#{ENV['VAGRANT_K8S_PROVISIONING_STEP']}.yml") and
-      ! ENV.key?('VAGRANT_K8S_EXCLUDE_ADDONS') || ! ENV['VAGRANT_K8S_EXCLUDE_ADDONS'].split(/\s+/).map { |x| "k8s.#{x}" }.include?(ENV['VAGRANT_K8S_PROVISIONING_STEP']) 
-        features.push($2) if ENV['VAGRANT_K8S_PROVISIONING_STEP'] =~ /^(k8s\.)(.*)/
-        
+      excluded_features.count == 0 || ! excluded_features.map { |x| "k8s.#{x}" }.include?(ENV['VAGRANT_K8S_PROVISIONING_STEP'])       
         node.vm.provision 'ansible_local' do |ansible|
           ansible.playbook = "provisioning/ansible/#{ENV['VAGRANT_K8S_PROVISIONING_STEP']}.yml"
 
@@ -53,7 +51,7 @@ Vagrant.configure('2') do |vconfig|
               email: ENV['VAGRANT_K8S_ACME_EMAIL'],
               caServer: ENV['VAGRANT_K8S_ACME_CASERVER'] || 'https://acme-v02.api.letsencrypt.org/directory'
             }}),
-            features: features
+            excluded_features: excluded_features
           }    
 
           ansible.become = true
