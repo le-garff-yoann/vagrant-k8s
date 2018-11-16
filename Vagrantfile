@@ -39,7 +39,8 @@ Vagrant.configure('2') do |vconfig|
       node.vm.provision 'shell', privileged: true,
         inline: "chmod -R g+r #{config['srvkube']['guest']}"
    
-      if File.exists?("#{current_dir}/provisioning/ansible/#{ENV['VAGRANT_K8S_PROVISIONING_STEP']}.yml")
+      if File.exists?("#{current_dir}/provisioning/ansible/#{ENV['VAGRANT_K8S_PROVISIONING_STEP']}.yml") and
+      ENV.key?('VAGRANT_K8S_EXCLUDE_ADDONS') || ! ENV['VAGRANT_K8S_EXCLUDE_ADDONS'].split(/\s+/).map { |x| "k8s.#{ENV['VAGRANT_K8S_PROVISIONING_STEP']}" }.include?(ENV['VAGRANT_K8S_PROVISIONING_STEP'])
         node.vm.provision 'ansible_local' do |ansible|
           ansible.playbook = "provisioning/ansible/#{ENV['VAGRANT_K8S_PROVISIONING_STEP']}.yml"
 

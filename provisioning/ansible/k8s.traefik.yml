@@ -1,0 +1,221 @@
+---
+
+- hosts: all
+
+  tasks:
+    - name: Generate and apply Traefik k8s manifest
+      block:
+        - tempfile:
+            state: file
+          register: tempfile
+          changed_when: false
+        - shell: kubectl create secret generic traefik-cert --from-file='{{ config.srvkube.guest }}/traefik.crt' --from-file='{{ config.srvkube.guest }}/traefik.key' --namespace=kube-system --dry-run -o yaml | kubectl apply -f -
+          changed_when: false
+        - copy:
+            dest: "{{ tempfile.path }}"
+            content: |
+              ---
+              kind: ClusterRole
+              apiVersion: rbac.authorization.k8s.io/v1beta1
+              metadata:
+                name: traefik
+              rules:
+                - apiGroups:
+                    - ""
+                  resources:
+                    - pods
+                    - services
+                    - endpoints
+                    - secrets
+                  verbs:
+                    - get
+                    - list
+                    - watch
+                - apiGroups:
+                    - extensions
+                  resources:
+                    - ingresses
+                  verbs:
+                    - get
+                    - list
+                    - watch
+
+              ---
+              apiVersion: v1
+              kind: ServiceAccount
+              metadata:
+                name: traefik
+                namespace: kube-system
+
+              ---
+              kind: ClusterRoleBinding
+              apiVersion: rbac.authorization.k8s.io/v1beta1
+              metadata:
+                name: traefik
+              roleRef:
+                apiGroup: rbac.authorization.k8s.io
+                kind: ClusterRole
+                name: traefik
+              subjects:
+                - kind: ServiceAccount
+                  name: traefik
+                  namespace: kube-system
+
+              ---
+              apiVersion: v1
+              kind: ConfigMap
+              metadata:
+                name: traefik
+                namespace: kube-system
+              data:
+                traefik.toml: |
+                  defaultEntryPoints = ["http", "https"]
+                  insecureSkipVerify = true
+                  logLevel = "INFO"
+
+                  [entryPoints]
+                    [entryPoints.http]
+                      address = ":80"
+                      compress = true
+                      [entryPoints.http.redirect]
+                      entryPoint = "https"
+                    [entryPoints.https]
+                    address = ":443"
+                    compress = true
+                    [entryPoints.https.tls]
+              {% if not config.acme.email %}
+                    [[entryPoints.https.tls.certificates]]
+                    CertFile = "/ssl/traefik.crt"
+                    KeyFile = "/ssl/traefik.key"
+              {% endif %}
+
+                  [kubernetes]
+
+                  [web]
+                  address = ":8080"
+                  readOnly = true
+
+              {% if config.acme.email %}
+                  # [etcd] # https://github.com/containous/traefik/issues/2712
+                  #   endpoint = "{{ config.virtual.nodes[config.k8s.services.traefik.etcdNode].ip }}:4001"
+
+                  [acme]
+                    email = "{{ config.acme.email }}"
+                    storage = "acme.json"
+                    # storage = "traefik/acme/account" # https://github.com/containous/traefik/issues/2712
+                    entryPoint = "https"
+                    OnHostRule = true
+                    caServer = "{{ config.acme.caServer }}"
+                    [acme.httpChallenge]
+                      entryPoint = "http"
+              {% endif %}
+
+              ---
+              kind: Service
+              apiVersion: v1
+              metadata:
+                name: traefik-ingress
+                namespace: kube-system
+                labels:
+                  kubernetes.io/cluster-service: "true"
+              spec:
+                selector:
+                  app: traefik
+                ports:
+                  - name: http
+                    protocol: TCP
+                    port: 80
+                    nodePort: {{ config.k8s.services.traefik.nodePort.http }}
+                  - name: https
+                    protocol: TCP
+                    port: 443
+                    nodePort: {{ config.k8s.services.traefik.nodePort.https }}
+                type: NodePort
+
+              ---
+              kind: Service
+              apiVersion: v1
+              metadata:
+                name: traefik-dashboard
+                namespace: kube-system
+              spec:
+                selector:
+                  app: traefik
+                ports:
+                  - name: admin
+                    protocol: TCP
+                    port: 8080
+
+              ---
+              apiVersion: extensions/v1beta1
+              kind: Ingress
+              metadata:
+                name: traefik-dashboard-ingress
+                namespace: kube-system
+              spec:
+                rules:
+                  - http:
+                      paths:
+                        - path: /
+                          backend:
+                            serviceName: traefik-dashboard
+                            servicePort: 8080
+
+              ---
+              kind: Deployment
+              apiVersion: extensions/v1beta1
+              metadata:
+                name: traefik
+                namespace: kube-system
+                labels:
+                  app: traefik
+              spec:
+                replicas: 1 # https://github.com/containous/traefik/issues/2712
+                selector:
+                  matchLabels:
+                    app: traefik
+                template:
+                  metadata:
+                    labels:
+                      app: traefik
+                      name: traefik
+                  spec:
+                    serviceAccountName: traefik
+                    terminationGracePeriodSeconds: 60
+                    volumes:
+                      - name: config
+                        configMap:
+                          name: traefik
+                      - name: ssl
+                        secret:
+                          secretName: traefik-cert
+                    containers:
+                      - image: traefik:{{ config.k8s.services.traefik.version }}
+                        name: traefik
+                        resources:
+                          limits:
+                            cpu: 200m
+                            memory: 30Mi
+                          requests:
+                            cpu: 100m
+                            memory: 20Mi
+                        volumeMounts:
+                          - name: "config"
+                            mountPath: "/config"
+                          - name: "ssl"
+                            mountPath: "/ssl"
+                        ports:
+                          - containerPort: 80
+                          - containerPort: 443
+                          - containerPort: 8080
+                        args:
+                          - --web
+                          - --kubernetes
+                          - --configfile=/config/traefik.toml
+        - command: kubectl apply -f {{ tempfile.path }}
+          changed_when: false
+      always:
+        - file:
+            path: "{{ tempfile.path }}"
+            state: absent
+          changed_when: false

@@ -1,0 +1,76 @@
+---
+
+- hosts: all
+
+  tasks:
+    - name: Install socat
+      apt:
+        name: socat
+
+    - stat:
+        path: /usr/local/bin/helm
+      register: sym
+
+    - shell: /usr/local/bin/helm version -c
+      register: helm_actual_version
+      changed_when: false
+      when: sym.stat.exists
+
+    - name: Download and install helm binary
+      block:
+        - get_url:
+            url: https://storage.googleapis.com/kubernetes-helm/helm-v{{ config.k8s.helm.version }}-linux-amd64.tar.gz
+            dest: /tmp/helm.tar.gz
+            validate_certs: no
+        - unarchive:
+            src: /tmp/helm.tar.gz
+            dest: /tmp
+        - copy:
+            src: /tmp/linux-amd64/helm
+            dest: /usr/local/bin/helm
+            mode: 0755
+        - file:
+            path: /tmp/helm.tar.gz
+            state: absent
+      when: not sym.stat.exists or helm_actual_version.stdout is not search("v" + config.k8s.helm.version)
+
+    - name: Generate and apply Helm ServiceAccount
+      block:
+        - tempfile:
+            state: file
+          register: tempfile
+          changed_when: false
+        - copy:
+            dest: "{{ tempfile.path }}"
+            content: |
+              ---
+              apiVersion: v1
+              kind: ServiceAccount
+              metadata:
+                name: tiller
+                namespace: kube-system
+
+              ---
+              apiVersion: rbac.authorization.k8s.io/v1
+              kind: ClusterRoleBinding
+              metadata:
+                name: tiller
+              roleRef:
+                apiGroup: rbac.authorization.k8s.io
+                kind: ClusterRole
+                name: cluster-admin
+              subjects:
+                - kind: ServiceAccount
+                  name: tiller
+                  namespace: kube-system
+        - command: kubectl apply -f {{ tempfile.path }}
+          changed_when: false
+      always:
+        - file:
+            path: "{{ tempfile.path }}"
+            state: absent
+          changed_when: false
+
+    - name: Helm initialization
+      shell: /usr/local/bin/helm init --service-account tiller
+      changed_when: false

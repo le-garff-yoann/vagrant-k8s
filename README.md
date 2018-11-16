@@ -27,6 +27,14 @@ export \
 bash setup.sh
 ```
 
+* Without Traefik and Helm
+
+```bash
+export VAGRANT_K8S_EXCLUDE_ADDONS='traefik helm'
+
+bash setup.sh
+```
+
 ## Usage
 
 ### e.g. nginx `Deployment`
