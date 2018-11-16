@@ -286,12 +286,14 @@
               errorfile 503 /etc/haproxy/errors/503.http
               errorfile 504 /etc/haproxy/errors/504.http
 
+          {% if 'traefik' in features %}
           frontend traefik-http-frontend
               bind 0.0.0.0:80
               mode tcp
               option tcplog
               tcp-request inspect-delay 5s
               default_backend traefik-lb
+          {% endif %}
 
           frontend k8s-api
               bind 0.0.0.0:443
@@ -299,7 +301,9 @@
               option tcplog
               tcp-request inspect-delay 5s
               tcp-request content accept if { req.ssl_hello_type 1 }
+          {% if 'traefik' in features %}
               use_backend traefik-tls-lb if { req.ssl_sni -m found } !{ req.ssl_sni -i k8s-api.{{ config.virtual.domain }} }
+          {% endif %}
               default_backend k8s-api
 
           backend k8s-api
@@ -312,6 +316,7 @@
               server k8s-api-{{ loop.index }} {{ v.ip }}:6443 check
           {% endfor %}
 
+          {% if 'traefik' in features %}
           backend traefik-lb
               mode tcp
               option tcplog
@@ -331,6 +336,7 @@
           {% for k, v in config.virtual.nodes | dictsort %}
               server traefik-{{ loop.index }} {{ v.ip }}:{{ config.k8s.services.traefik.nodePort.https }} check
           {% endfor %}
+          {% endif %}
       notify: Restart HAProxy service
 
     - name: Start HAProxy service
