@@ -27,7 +27,7 @@ export \
 bash setup.sh
 ```
 
-* Without Traefik and Helm
+* Without Traefik and Helm (better for [Gitlab integration!](https://docs.gitlab.com/ee/user/project/clusters/))
 
 ```bash
 export VAGRANT_K8S_EXCLUDE_ADDONS='traefik helm'
