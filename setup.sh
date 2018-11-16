@@ -208,7 +208,7 @@ VAGRANT_K8S_PROVISIONING_STEP=etcd vagrant provision && \
 VAGRANT_K8S_PROVISIONING_STEP=flannel vagrant provision && \
 VAGRANT_K8S_PROVISIONING_STEP=k8s vagrant provision && \
 VAGRANT_K8S_PROVISIONING_STEP=k8s.coredns vagrant provision \
-VAGRANT_K8S_PROVISIONING_STEP=k8s.dynamic-storage vagrant provision \
+VAGRANT_K8S_PROVISIONING_STEP=k8s.nfs-dynamic-storage vagrant provision \
 VAGRANT_K8S_PROVISIONING_STEP=k8s.traefik vagrant provision \
 VAGRANT_K8S_PROVISIONING_STEP=k8s.helm vagrant provision
 
