@@ -49,6 +49,13 @@
         state: restarted
 
   tasks:
+    - name: Install utilities
+      apt:
+        name: "{{ item }}"
+      with_items:
+        - jq
+        - socat
+
     - name: Install our CA into local system CA dir
       copy:
         src: "{{ config.srvkube.guest }}/ca.pem"

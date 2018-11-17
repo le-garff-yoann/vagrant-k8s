@@ -16,10 +16,6 @@
         - net.ipv6.conf.default.disable_ipv6
         - net.ipv6.conf.lo.disable_ipv6
 
-    - name: Install jq
-      apt:
-        name: jq
-
     - name: Add nodes to /etc/hosts
       lineinfile:
         dest: /etc/hosts

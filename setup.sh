@@ -101,6 +101,13 @@ EOF
         -extfile "worker-${hostname}-openssl.cnf"
 done
 
+if [[ -n $VAGRANT_K8S_APISERVER_CERT_PUBLIC_DOMAIN ]]
+then
+    let dns_c++
+
+    echo "DNS.${dns_c} = k8s-api.${VAGRANT_K8S_APISERVER_CERT_PUBLIC_DOMAIN}" >> openssl.cnf
+fi
+
 [[ -f apiserver-key.pem ]] || openssl genrsa -out apiserver-key.pem 2048
 [[ -f apiserver.csr ]] || openssl req -new \
     -key apiserver-key.pem \

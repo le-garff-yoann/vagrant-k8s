@@ -27,12 +27,18 @@ export \
 bash setup.sh
 ```
 
-* Without Traefik and Helm (better for [Gitlab integration!](https://docs.gitlab.com/ee/user/project/clusters/))
+* For [Gitlab integration](https://docs.gitlab.com/ee/user/project/clusters/)
 
 ```bash
-export VAGRANT_K8S_EXCLUDE_ADDONS='traefik helm'
+export \
+  VAGRANT_K8S_EXCLUDE_ADDONS='traefik helm' \
+  VAGRANT_K8S_APISERVER_CERT_PUBLIC_DOMAIN=mydomain.io
 
 bash setup.sh
+
+# https://gitlab.com/gitlab-org/gitlab-ce/issues/46969
+vagrant ssh k8s01 \
+  -c 'kubectl create clusterrolebinding --user system:serviceaccount:default:default default-sa-admin --clusterrole cluster-admin'
 ```
 
 ## Usage
@@ -99,7 +105,7 @@ exit
 curl -Lk https://nginx-1.default.mydomain.io # Welcome to nginx! 
 ```
 
-### eg. Wordpress with Helm
+### e.g. Wordpress with Helm
 
 ```bash
 vagrant ssh k8s01

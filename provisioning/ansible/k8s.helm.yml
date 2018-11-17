@@ -3,10 +3,6 @@
 - hosts: all
 
   tasks:
-    - name: Install socat
-      apt:
-        name: socat
-
     - stat:
         path: /usr/local/bin/helm
       register: sym
