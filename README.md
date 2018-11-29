@@ -27,7 +27,25 @@ export \
 bash setup.sh
 ```
 
-* For [Gitlab integration](https://docs.gitlab.com/ee/user/project/clusters/)
+* With a [Gitlab Runner](https://docs.gitlab.com/runner/)
+
+```bash
+export \
+  VAGRANT_K8S_ACME_EMAIL=used4registration@gmail.com
+
+bash setup.sh
+
+vagrant ssh k8s01
+
+# https://docs.gitlab.com/runner/install/linux-manually.html
+
+su - gitlab-runner
+
+echo 'tty -s' >> ~/.bashrc
+helm init --client-only
+```
+
+* For the [automatic Gitlab integration](https://docs.gitlab.com/ee/user/project/clusters/)
 
 ```bash
 export \
