@@ -72,8 +72,10 @@
                     - ""
                   resources:
                     - events
-                  verbs: 
+                  verbs:
                     - create
+                    - list
+                    - watch
                     - update
                     - patch
                 - apiGroups:
