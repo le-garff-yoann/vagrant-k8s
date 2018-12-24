@@ -27,7 +27,7 @@ export \
 bash setup.sh
 ```
 
-* With a [Gitlab Runner](https://docs.gitlab.com/runner/)
+* With a [Gitlab Runner](https://docs.gitlab.com/runner)
 
 ```bash
 export \
@@ -45,7 +45,7 @@ echo 'tty -s' >> ~/.bashrc
 helm init --client-only
 ```
 
-* For the [automatic Gitlab integration](https://docs.gitlab.com/ee/user/project/clusters/)
+* For the [automatic Gitlab integration](https://docs.gitlab.com/ee/user/project/clusters)
 
 ```bash
 export \

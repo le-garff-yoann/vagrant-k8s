@@ -368,13 +368,12 @@
           StartLimitInterval=0
           KillMode=process
           ExecStart=/usr/local/bin/hyperkube kubelet \
-            --cloud-provider='' \
+            --cloud-provider='{{ config.k8s.service.cloudProvider }}' \
             --hairpin-mode=hairpin-veth \
             --address={{ config.virtual.nodes[ansible_hostname].ip }} \
             --anonymous-auth=false \
             --authentication-token-webhook=true \
             --allow-privileged=true \
-            --enable-custom-metrics=true \
             --cgroup-root= \
             --runtime-cgroups=/systemd/system.slice \
             --kubelet-cgroups=/systemd/system.slice \
@@ -487,7 +486,7 @@
           StartLimitInterval=0
           KillMode=process
           ExecStart=/usr/local/bin/hyperkube controller-manager \
-            --cloud-provider='' \
+            --cloud-provider='{{ config.k8s.service.cloudProvider }}' \
             --allocate-node-cidrs=true \
             --cluster-cidr={{ config.k8s.pod.network }} \
             --cluster-name=k8s.{{ config.virtual.domain }} \

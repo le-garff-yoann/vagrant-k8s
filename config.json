@@ -24,15 +24,15 @@
     }
   },
   "k8s": {
-    "version": "1.10.9",
+    "version": "1.12.4",
     "vip": "192.168.0.150",
     "defaultRoute": "192.168.0.1",
     "domain": "cluster.local",
     "etcd": {
-      "version": "3.1.20"
+      "version": "3.3.10"
     },
     "flannel": {
-      "version": "0.7.0",
+      "version": "0.9.1",
       "subnetlen": "24"
     },
     "pod": {
@@ -40,18 +40,19 @@
     },
     "service": {
       "range": "10.3.0.0/24",
-      "nodePortRange": "30000-40000"
+      "nodePortRange": "30000-40000",
+      "cloudProvider": ""
     },
     "services": {
       "kubeapi": { "ip": "10.3.0.1" },
-      "coredns": { "ip": "10.3.0.10", "version": "1.1.4" },
+      "coredns": { "ip": "10.3.0.10", "version": "1.3.0" },
       "nfs": {
-        "version": "1.1.0-k8s1.10",
+        "version": "2.2.1-k8s1.12",
         "storageNode": "k8s01",
         "hostPath": "/srv/nfs"
       },
       "traefik": {
-        "version": "1.7.4",
+        "version": "1.7.6",
         "etcdNode": "k8s01",
         "nodePort": {
           "http": "30001",
@@ -60,7 +61,7 @@
       }
     },
     "helm": {
-      "version": "2.11.0"
+      "version": "2.12.1"
     }
   }
 }
