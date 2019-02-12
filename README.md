@@ -1,6 +1,6 @@
 # vagrant-k8s
 
-This is a template for deploying a k8s cluster.
+Deploy a k8s cluster via Vagrant. **It's only meant for testing purposes.**
 
 ## Others prerequisites
 
