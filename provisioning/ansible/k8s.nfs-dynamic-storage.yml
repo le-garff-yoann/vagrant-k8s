@@ -11,7 +11,7 @@
         - tempfile:
             state: file
           register: tempfile
-          changed_when: false
+          changed_when: False
         - copy:
             dest: "{{ tempfile.path }}"
             content: |
@@ -41,11 +41,11 @@
               metadata:
                 name: nfs-provisioner-runner
               rules:
-                - apiGroups: 
+                - apiGroups:
                     - ""
                   resources:
                     - persistentvolumes
-                  verbs: 
+                  verbs:
                     - get
                     - list
                     - watch
@@ -64,7 +64,7 @@
                     - storage.k8s.io
                   resources:
                     - storageclasses
-                  verbs: 
+                  verbs:
                     - get
                     - list
                     - watch
@@ -83,7 +83,7 @@
                   resources:
                     - services
                     - endpoints
-                  verbs: 
+                  verbs:
                     - get
                     - list
                     - watch
@@ -119,11 +119,11 @@
               metadata:
                 name: leader-locking-nfs-provisioner
               rules:
-                - apiGroups: 
+                - apiGroups:
                     - ""
-                  resources: 
+                  resources:
                     - endpoints
-                  verbs: 
+                  verbs:
                     - get
                     - list
                     - watch
@@ -169,12 +169,17 @@
 
               ---
               kind: Deployment
-              apiVersion: apps/v1beta1
+              apiVersion: apps/v1
               metadata:
                 name: nfs-provisioner
                 namespace: kube-system
+                labels:
+                  app: nfs-provisioner
               spec:
                 replicas: 1
+                selector:
+                  matchLabels:
+                    app: nfs-provisioner
                 strategy:
                   type: Recreate
                 template:
@@ -224,10 +229,10 @@
                         hostPath:
                           path: {{ config.k8s.services.nfs.hostPath }}
         - command: kubectl apply -f {{ tempfile.path }}
-          changed_when: false
+          changed_when: False
       always:
         - file:
             path: "{{ tempfile.path }}"
             state: absent
-          changed_when: false
+          changed_when: False
       when: config.k8s.services.nfs.storageNode == ansible_hostname

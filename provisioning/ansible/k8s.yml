@@ -24,9 +24,9 @@
         daemon_reload: yes
         state: restarted
 
-    - name: Restart kubeapi-server service
+    - name: Restart kube-apiserver service
       systemd:
-        name: kubeapi-server
+        name: kube-apiserver
         daemon_reload: yes
         state: restarted
 
@@ -63,17 +63,17 @@
       notify: Update CA Certificates
 
     - stat:
-        path: /usr/local/bin/hyperkube
+        path: /usr/local/bin/kube-apiserver
       register: sym
 
-    - shell: /usr/local/bin/hyperkube kube-apiserver --version
+    - shell: /usr/local/bin/kube-apiserver --version
       register: k8s_actual_version
-      changed_when: false
+      changed_when: False
       when: sym.stat.exists
 
     - name: Download and install k8s binaries
       block:
-        - get_url: 
+        - get_url:
             url: https://github.com/kubernetes/kubernetes/releases/download/v{{ config.k8s.version }}/kubernetes.tar.gz
             dest: /tmp/kubernetes.tar.gz
             validate_certs: no
@@ -90,12 +90,16 @@
             mode: 0755
           notify:
             - Restart kubelet service
-            - Restart kubeapi-server service
+            - Restart kube-apiserver service
             - Restart kube-controller-manager service
             - Restart kube-scheduler service
             - Restart kube-proxy service
           with_items:
-            - /tmp/kubernetes/server/kubernetes/server/bin/hyperkube
+            - /tmp/kubernetes/server/kubernetes/server/bin/kubelet
+            - /tmp/kubernetes/server/kubernetes/server/bin/kube-apiserver
+            - /tmp/kubernetes/server/kubernetes/server/bin/kube-controller-manager
+            - /tmp/kubernetes/server/kubernetes/server/bin/kube-scheduler
+            - /tmp/kubernetes/server/kubernetes/server/bin/kube-proxy
             - /tmp/kubernetes/server/kubernetes/server/bin/kubectl
             - /tmp/kubernetes/server/kubernetes/server/bin/kubeadm
         - file:
@@ -128,23 +132,23 @@
 
     - name: kubectl set-cluster for admin user
       shell: kubectl config set-cluster k8s.{{ config.virtual.domain }} --certificate-authority='{{ config.srvkube.guest }}/ca.pem' --embed-certs=true --server=https://k8s-api.{{ config.virtual.domain }}
-      changed_when: false
+      changed_when: False
 
     - name: kubectl set-credentials for admin user
       shell: kubectl config set-credentials admin --client-certificate='{{ config.srvkube.guest }}/admin.pem' --client-key='{{ config.srvkube.guest }}/admin-key.pem' --embed-certs=true
-      changed_when: false
+      changed_when: False
 
     - name: kubectl set-context for admin user
       shell: kubectl config set-context k8s.{{ config.virtual.domain }} --cluster=k8s.{{ config.virtual.domain }} --user=admin
-      changed_when: false
+      changed_when: False
 
     - name: kubectl use-context for admin user
       shell: kubectl config use-context k8s.{{ config.virtual.domain }} --user=admin
-      changed_when: false
+      changed_when: False
 
     - name: kubectl set-cluster for users
       shell: kubectl config set-cluster k8s.{{ config.virtual.domain }} --certificate-authority='{{ config.srvkube.guest }}/ca.pem' --embed-certs=true --server=https://k8s-api.{{ config.virtual.domain }} --kubeconfig=/var/lib/{{ item }}/kubeconfig
-      changed_when: false
+      changed_when: False
       with_items:
         - kubelet
         - kube-proxy
@@ -153,7 +157,7 @@
 
     - name: kubectl set-credentials for users (except for kubelet)
       shell: kubectl config set-credentials {{ item }} --client-certificate='{{ config.srvkube.guest }}/{{ item }}.pem' --client-key='{{ config.srvkube.guest }}/{{ item }}-key.pem' --embed-certs=true --kubeconfig=/var/lib/{{ item }}/kubeconfig
-      changed_when: false
+      changed_when: False
       with_items:
         - kube-proxy
         - kube-controller-manager
@@ -161,11 +165,11 @@
 
     - name: kubectl set-credentials for kubelet
       shell: kubectl config set-credentials kubelet --client-certificate='{{ config.srvkube.guest }}/{{ ansible_hostname }}-worker.pem' --client-key='{{ config.srvkube.guest }}/{{ ansible_hostname }}-worker-key.pem' --embed-certs=true --kubeconfig=/var/lib/kubelet/kubeconfig
-      changed_when: false
+      changed_when: False
 
     - name: kubectl set-context for users
       shell: kubectl config set-context k8s.{{ config.virtual.domain }} --cluster=k8s.{{ config.virtual.domain }} --user={{ item }} --kubeconfig=/var/lib/{{ item }}/kubeconfig
-      changed_when: false
+      changed_when: False
       with_items:
         - kubelet
         - kube-proxy
@@ -174,7 +178,7 @@
 
     - name: kubectl use-context for users
       shell: kubectl config use-context k8s.{{ config.virtual.domain }} --user={{ item }} --kubeconfig=/var/lib/{{ item }}/kubeconfig
-      changed_when: false
+      changed_when: False
       with_items:
         - kubelet
         - kube-proxy
@@ -192,16 +196,10 @@
       lineinfile:
         dest: ~/.bashrc
         line: "{{ item }}"
+      become: yes
       become_user: vagrant
       with_items:
         - source <(kubectl completion bash)
-
-    - name: Install prerequisites to Keepalived
-      apt:
-        name: "{{ item }}"
-      with_items:
-        - psmisc
-        - libipset3
 
     - name: Install Keepalived
       apt:
@@ -220,7 +218,7 @@
           vrrp_instance haproxy-vip {
               state BACKUP
               priority 101
-              interface enp0s8
+              interface eth1
               virtual_router_id 47
               advert_int 3
 
@@ -230,7 +228,7 @@
           {% if v.ip != config.virtual.nodes[ansible_hostname].ip %}
                   {{ v.ip }}
           {% endif %}
-          {% endfor %} 
+          {% endfor %}
               }
 
               virtual_ipaddress {
@@ -331,7 +329,7 @@
               balance roundrobin
               default-server inter 10s downinter 5s rise 2 fall 2 slowstart 60s maxconn 250 maxqueue 256 weight 100
           {% for k, v in config.virtual.nodes | dictsort %}
-              server traefik-{{ loop.index }} {{ v.ip }}:{{ config.k8s.services.traefik.nodePort.http }} check
+              server traefik-{{ loop.index }} {{ v.ip }}:{{ config.k8s.services.traefik1.nodePort.http }} check
           {% endfor %}
 
           backend traefik-tls-lb
@@ -341,7 +339,7 @@
               balance roundrobin
               default-server inter 10s downinter 5s rise 2 fall 2 slowstart 60s maxconn 250 maxqueue 256 weight 100
           {% for k, v in config.virtual.nodes | dictsort %}
-              server traefik-{{ loop.index }} {{ v.ip }}:{{ config.k8s.services.traefik.nodePort.https }} check
+              server traefik-{{ loop.index }} {{ v.ip }}:{{ config.k8s.services.traefik1.nodePort.https }} check
           {% endfor %}
           {% endif %}
       notify: Restart HAProxy service
@@ -367,13 +365,12 @@
           RestartSec=5s
           StartLimitInterval=0
           KillMode=process
-          ExecStart=/usr/local/bin/hyperkube kubelet \
+          ExecStart=/usr/local/bin/kubelet \
             --cloud-provider='{{ config.k8s.service.cloudProvider }}' \
             --hairpin-mode=hairpin-veth \
             --address={{ config.virtual.nodes[ansible_hostname].ip }} \
             --anonymous-auth=false \
             --authentication-token-webhook=true \
-            --allow-privileged=true \
             --cgroup-root= \
             --runtime-cgroups=/systemd/system.slice \
             --kubelet-cgroups=/systemd/system.slice \
@@ -391,10 +388,9 @@
             --cni-bin-dir=/etc/kubernetes/cni/net.d \
             --network-plugin='' \
             --node-ip={{ config.virtual.nodes[ansible_hostname].ip }} \
-            --feature-gates=PersistentLocalVolumes=true \
             --fail-swap-on=false \
             --serialize-image-pulls=false \
-            --node-labels=kubernetes.io/role=master,node-role.kubernetes.io/master= \
+            --node-labels=node.kubernetes.io/role=master \
             --log-dir=/var/log/kubernetes \
             --logtostderr=false \
             --v=2
@@ -403,7 +399,7 @@
           WantedBy=multi-user.target
       notify:
         - Restart kubelet service
-        - Restart kubeapi-server service
+        - Restart kube-apiserver service
         - Restart kube-controller-manager service
         - Restart kube-scheduler service
         - Restart kube-proxy service
@@ -417,7 +413,7 @@
 
     - name: Setup kube-apiserver systemd service unit
       copy:
-        dest: /lib/systemd/system/kubeapi-server.service
+        dest: /lib/systemd/system/kube-apiserver.service
         content: |
           [Unit]
           Description=Kubernetes API Server
@@ -429,11 +425,10 @@
           RestartSec=5s
           StartLimitInterval=0
           KillMode=process
-          ExecStart=/usr/local/bin/hyperkube kube-apiserver \
+          ExecStart=/usr/local/bin/kube-apiserver \
             --bind-address=0.0.0.0 \
             --advertise-address={{ config.virtual.nodes[ansible_hostname].ip }} \
             --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,NodeRestriction \
-            --allow-privileged=true \
             --apiserver-count={{ config.virtual.nodes | length }} \
             --etcd-servers={% set c = [] %}{% for k, v in config.virtual.nodes | dictsort %}{% set d = c.append('http://' + k + '.' + config.virtual.domain + ':4001') %}{% endfor %}{{ c | join(',') }} \
             --kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP,LegacyHostIP \
@@ -441,8 +436,8 @@
             --secure-port=6443 \
             --insecure-port=8080 \
             --service-cluster-ip-range={{ config.k8s.service.range }} \
-            --runtime-config=api/all=true,batch/v2alpha1=true,authentication.k8s.io/v1beta1=true,authorization.k8s.io/v1beta1=true,rbac.authorization.k8s.io/v1beta1=true,apps/v1beta2=true,extensions/v1beta1=true,extensions/v1beta1/networkpolicies=true \
-            --feature-gates=PersistentLocalVolumes=true,ExpandPersistentVolumes=true,MountPropagation=true,PodPriority=true \
+            --runtime-config=api/all=true,batch/v2alpha1=true,authentication.k8s.io/v1beta1=true,authorization.k8s.io/v1beta1=true,rbac.authorization.k8s.io/v1beta1=true,apps/v1beta2=true,apps/v1=true,apps/v1/networkpolicies=true \
+            --feature-gates=ExpandPersistentVolumes=true,PodPriority=true \
             --anonymous-auth=false \
             --authorization-mode=Node,RBAC \
             --client-ca-file='{{ config.srvkube.guest }}/ca.pem' \
@@ -459,14 +454,14 @@
           WantedBy=multi-user.target
       notify:
         - Restart kubelet service
-        - Restart kubeapi-server service
+        - Restart kube-apiserver service
         - Restart kube-controller-manager service
         - Restart kube-scheduler service
         - Restart kube-proxy service
 
-    - name: Start kubeapi-server service
+    - name: Start kube-apiserver service
       systemd:
-        name: kubeapi-server
+        name: kube-apiserver
         daemon_reload: yes
         enabled: yes
         state: started
@@ -485,7 +480,7 @@
           RestartSec=5s
           StartLimitInterval=0
           KillMode=process
-          ExecStart=/usr/local/bin/hyperkube controller-manager \
+          ExecStart=/usr/local/bin/kube-controller-manager \
             --cloud-provider='{{ config.k8s.service.cloudProvider }}' \
             --allocate-node-cidrs=true \
             --cluster-cidr={{ config.k8s.pod.network }} \
@@ -499,7 +494,7 @@
             --use-service-account-credentials=true \
             --cluster-signing-cert-file='{{ config.srvkube.guest }}/ca.pem' \
             --cluster-signing-key-file='{{ config.srvkube.guest }}/apiserver-key.pem' \
-            --feature-gates=PersistentLocalVolumes=true,ExpandPersistentVolumes=true,PodPriority=true \
+            --feature-gates=ExpandPersistentVolumes=true,PodPriority=true \
             --log-dir=/var/log/kubernetes \
             --logtostderr=false \
             --v=2
@@ -508,7 +503,7 @@
           WantedBy=multi-user.target
       notify:
         - Restart kubelet service
-        - Restart kubeapi-server service
+        - Restart kube-apiserver service
         - Restart kube-controller-manager service
         - Restart kube-scheduler service
         - Restart kube-proxy service
@@ -534,7 +529,7 @@
           RestartSec=5s
           StartLimitInterval=0
           KillMode=process
-          ExecStart=/usr/local/bin/hyperkube kube-proxy \
+          ExecStart=/usr/local/bin/kube-proxy \
             --kubeconfig=/var/lib/kube-proxy/kubeconfig
             --conntrack-max-per-core=131072 \
             --proxy-mode=iptables \
@@ -548,7 +543,7 @@
           WantedBy=multi-user.target
       notify:
         - Restart kubelet service
-        - Restart kubeapi-server service
+        - Restart kube-apiserver service
         - Restart kube-controller-manager service
         - Restart kube-scheduler service
         - Restart kube-proxy service
@@ -574,10 +569,10 @@
           RestartSec=5s
           StartLimitInterval=0
           KillMode=process
-          ExecStart=/usr/local/bin/hyperkube kube-scheduler \
+          ExecStart=/usr/local/bin/kube-scheduler \
             --leader-elect=true \
             --kubeconfig=/var/lib/kube-scheduler/kubeconfig \
-            --feature-gates=PersistentLocalVolumes=true,ExpandPersistentVolumes=true,PodPriority=true \
+            --feature-gates=ExpandPersistentVolumes=true,PodPriority=true \
             --log-dir=/var/log/kubernetes \
             --logtostderr=false \
             --v=2
@@ -586,7 +581,7 @@
           WantedBy=multi-user.target
       notify:
         - Restart kubelet service
-        - Restart kubeapi-server service
+        - Restart kube-apiserver service
         - Restart kube-controller-manager service
         - Restart kube-scheduler service
         - Restart kube-proxy service

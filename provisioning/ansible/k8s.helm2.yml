@@ -9,13 +9,13 @@
 
     - shell: /usr/local/bin/helm version -c
       register: helm_actual_version
-      changed_when: false
+      changed_when: False
       when: sym.stat.exists
 
     - name: Download and install helm binary
       block:
         - get_url:
-            url: https://storage.googleapis.com/kubernetes-helm/helm-v{{ config.k8s.helm.version }}-linux-amd64.tar.gz
+            url: https://storage.googleapis.com/kubernetes-helm/helm-v{{ config.k8s.helm2.version }}-linux-amd64.tar.gz
             dest: /tmp/helm.tar.gz
             validate_certs: no
         - unarchive:
@@ -28,14 +28,14 @@
         - file:
             path: /tmp/helm.tar.gz
             state: absent
-      when: not sym.stat.exists or helm_actual_version.stdout is not search("v" + config.k8s.helm.version)
+      when: not sym.stat.exists or helm_actual_version.stdout is not search("v" + config.k8s.helm2.version)
 
     - name: Generate and apply Helm ServiceAccount
       block:
         - tempfile:
             state: file
           register: tempfile
-          changed_when: false
+          changed_when: False
         - copy:
             dest: "{{ tempfile.path }}"
             content: |
@@ -60,13 +60,13 @@
                   name: tiller
                   namespace: kube-system
         - command: kubectl apply -f {{ tempfile.path }}
-          changed_when: false
+          changed_when: False
       always:
         - file:
             path: "{{ tempfile.path }}"
             state: absent
-          changed_when: false
+          changed_when: False
 
     - name: Helm initialization
       shell: /usr/local/bin/helm init --service-account tiller
-      changed_when: false
+      changed_when: False

@@ -8,15 +8,15 @@
         - tempfile:
             state: file
           register: tempfile
-          changed_when: false
+          changed_when: False
         - shell: kubectl create secret generic traefik-cert --from-file='{{ config.srvkube.guest }}/traefik.crt' --from-file='{{ config.srvkube.guest }}/traefik.key' --namespace=kube-system --dry-run -o yaml | kubectl apply -f -
-          changed_when: false
+          changed_when: False
         - copy:
             dest: "{{ tempfile.path }}"
             content: |
               ---
               kind: ClusterRole
-              apiVersion: rbac.authorization.k8s.io/v1beta1
+              apiVersion: rbac.authorization.k8s.io/v1
               metadata:
                 name: traefik
               rules:
@@ -49,7 +49,7 @@
 
               ---
               kind: ClusterRoleBinding
-              apiVersion: rbac.authorization.k8s.io/v1beta1
+              apiVersion: rbac.authorization.k8s.io/v1
               metadata:
                 name: traefik
               roleRef:
@@ -80,24 +80,24 @@
                       [entryPoints.http.redirect]
                       entryPoint = "https"
                     [entryPoints.https]
-                    address = ":443"
-                    compress = true
+                      address = ":443"
+                      compress = true
                     [entryPoints.https.tls]
               {% if not config.acme.email %}
                     [[entryPoints.https.tls.certificates]]
-                    CertFile = "/ssl/traefik.crt"
-                    KeyFile = "/ssl/traefik.key"
+                      CertFile = "/ssl/traefik.crt"
+                      KeyFile = "/ssl/traefik.key"
               {% endif %}
 
                   [kubernetes]
 
                   [web]
-                  address = ":8080"
-                  readOnly = true
+                    address = ":8080"
+                    readOnly = true
 
               {% if config.acme.email %}
                   # [etcd] # https://github.com/containous/traefik/issues/2712
-                  #   endpoint = "{{ config.virtual.nodes[config.k8s.services.traefik.etcdNode].ip }}:4001"
+                  #   endpoint = "{{ config.virtual.nodes[config.k8s.services.traefik1.etcdNode].ip }}:4001"
 
                   [acme]
                     email = "{{ config.acme.email }}"
@@ -125,11 +125,11 @@
                   - name: http
                     protocol: TCP
                     port: 80
-                    nodePort: {{ config.k8s.services.traefik.nodePort.http }}
+                    nodePort: {{ config.k8s.services.traefik1.nodePort.http }}
                   - name: https
                     protocol: TCP
                     port: 443
-                    nodePort: {{ config.k8s.services.traefik.nodePort.https }}
+                    nodePort: {{ config.k8s.services.traefik1.nodePort.https }}
                 type: NodePort
 
               ---
@@ -147,7 +147,7 @@
                     port: 8080
 
               ---
-              apiVersion: extensions/v1beta1
+              apiVersion: networking.k8s.io/v1beta1
               kind: Ingress
               metadata:
                 name: traefik-dashboard-ingress
@@ -163,7 +163,7 @@
 
               ---
               kind: Deployment
-              apiVersion: extensions/v1beta1
+              apiVersion: apps/v1
               metadata:
                 name: traefik
                 namespace: kube-system
@@ -190,7 +190,7 @@
                         secret:
                           secretName: traefik-cert
                     containers:
-                      - image: traefik:{{ config.k8s.services.traefik.version }}
+                      - image: traefik:{{ config.k8s.services.traefik1.version }}
                         name: traefik
                         resources:
                           limits:
@@ -213,9 +213,9 @@
                           - --kubernetes
                           - --configfile=/config/traefik.toml
         - command: kubectl apply -f {{ tempfile.path }}
-          changed_when: false
+          changed_when: False
       always:
         - file:
             path: "{{ tempfile.path }}"
             state: absent
-          changed_when: false
+          changed_when: False

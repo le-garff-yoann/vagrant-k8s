@@ -49,7 +49,7 @@ helm init --client-only
 
 ```bash
 export \
-  VAGRANT_K8S_EXCLUDE_ADDONS='traefik helm' \
+  VAGRANT_K8S_EXCLUDE_ADDONS='traefik1 helm2' \
   VAGRANT_K8S_APISERVER_CERT_PUBLIC_DOMAIN=mydomain.io
 
 bash setup.sh
@@ -66,7 +66,7 @@ vagrant ssh k8s01 \
 ```bash
 vagrant ssh k8s01
 
-sudo kubectl apply -f - <<EOF
+kubectl apply -f - <<EOF
 ---
 apiVersion: v1
 kind: Service
@@ -82,7 +82,7 @@ spec:
     app: nginx-1
 
 ---
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1beta1
 kind: Ingress
 metadata:
   name: nginx-1
@@ -128,7 +128,7 @@ curl -Lk https://nginx-1.default.mydomain.io # Welcome to nginx!
 ```bash
 vagrant ssh k8s01
 
-sudo helm install stable/wordpress \
+helm install stable/wordpress \
   --name wordpress-1 \
   --set serviceType=ClusterIP,ingress.enabled=true,ingress.hosts[0].name=wordpress-1.default.mydomain.io \
   --wait

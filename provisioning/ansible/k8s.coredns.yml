@@ -8,7 +8,7 @@
         - tempfile:
             state: file
           register: tempfile
-          changed_when: false
+          changed_when: False
         - copy:
             dest: "{{ tempfile.path }}"
             content: |
@@ -20,12 +20,12 @@
                 namespace: kube-system
 
               ---
-              apiVersion: rbac.authorization.k8s.io/v1beta1
+              apiVersion: rbac.authorization.k8s.io/v1
               kind: ClusterRole
               metadata:
+                name: system:coredns
                 labels:
                   kubernetes.io/bootstrapping: rbac-defaults
-                name: system:coredns
               rules:
                 - apiGroups:
                     - ""
@@ -39,12 +39,12 @@
                     - watch
 
               ---
-              apiVersion: rbac.authorization.k8s.io/v1beta1
+              apiVersion: rbac.authorization.k8s.io/v1
               kind: ClusterRoleBinding
               metadata:
                 name: system:coredns
                 annotations:
-                  rbac.authorization.kubernetes.io/autoupdate: true
+                  rbac.authorization.kubernetes.io/autoupdate: "true"
                 labels:
                   kubernetes.io/bootstrapping: rbac-defaults
               roleRef:
@@ -73,7 +73,7 @@
                         upstream /etc/resolv.conf
                       }
                       prometheus :9153
-                      proxy . /etc/resolv.conf
+                      forward . /etc/resolv.conf
                       cache 30
                   }
 
@@ -105,7 +105,7 @@
                     protocol: TCP
 
               ---
-              apiVersion: extensions/v1beta1
+              apiVersion: apps/v1
               kind: Deployment
               metadata:
                 name: coredns
@@ -126,8 +126,6 @@
                   spec:
                     serviceAccountName: coredns
                     tolerations:
-                      - key: node-role.kubernetes.io/master
-                        effect: NoSchedule
                       - key: CriticalAddonsOnly
                         operator: Exists
                     affinity:
@@ -176,9 +174,9 @@
                             - key: Corefile
                               path: Corefile
         - command: kubectl apply -f {{ tempfile.path }}
-          changed_when: false
+          changed_when: False
       always:
         - file:
             path: "{{ tempfile.path }}"
             state: absent
-          changed_when: false
+          changed_when: False

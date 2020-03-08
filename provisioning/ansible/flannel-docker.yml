@@ -2,6 +2,9 @@
 
 - hosts: all
 
+  vars:
+    docker_download_url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}"
+
   handlers:
     - name: Restart flannel service
       systemd:
@@ -23,7 +26,9 @@
     - name: Set flannel configuration in etcd for flannel master node
       command: |
         etcdctl set /coreos.com/network/config '{ "Network": "{{ config.k8s.pod.network }}", "SubnetLen": {{ config.k8s.flannel.subnetlen }}, "Backend": { "Type": "vxlan" }}'
-      changed_when: false
+      environment:
+        ETCDCTL_API: "2"
+      changed_when: False
 
     - stat:
         path: /usr/local/bin/flanneld
@@ -31,11 +36,11 @@
 
     - shell: /usr/local/bin/flanneld --version
       register: flannel_actual_version
-      changed_when: false
+      changed_when: False
       when: sym.stat.exists
 
     - name: Download and install flanneld binary
-      get_url: 
+      get_url:
         url: https://github.com/coreos/flannel/releases/download/v{{ config.k8s.flannel.version }}/flanneld-amd64
         dest: /usr/local/bin/flanneld
         validate_certs: no
@@ -66,7 +71,7 @@
           ExecStart=/usr/local/bin/flanneld \
             -etcd-endpoints={% set c = [] %}{% for k, v in config.virtual.nodes | dictsort %}{% set d = c.append('http://' + k + '.' + config.virtual.domain + ':4001') %}{% endfor %}{{ c | join(',') }} \
             -ip-masq=true \
-            -iface=enp0s8 \
+            -iface=eth1 \
             -public-ip={{ config.virtual.nodes[ansible_hostname].ip }} \
             2>&1
 
@@ -82,6 +87,23 @@
         daemon_reload: yes
         enabled: yes
         state: started
+
+    - name: Get Docker apt key
+      apt_key:
+        id: 0EBFCD88
+        url: "{{ docker_download_url }}/gpg"
+        validate_certs: no
+
+    - name: Setup Docker apt repository
+      apt_repository:
+        repo: "deb [arch=amd64] {{ docker_download_url }} {{ ansible_distribution_release }} stable"
+        state: present
+      
+    - name: Install docker-ce
+      apt:
+        name: docker-ce
+        state: latest
+        update_cache: yes
 
     - name: Configure Execstart in /lib/systemd/system/docker.service
       replace:

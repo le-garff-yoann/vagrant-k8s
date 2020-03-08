@@ -30,20 +30,20 @@
 
     - shell: /usr/local/bin/etcd --version
       register: etcd_actual_version
-      changed_when: false
+      changed_when: False
       when: sym.stat.exists
 
     - name: Download and install etcd binaries
       block:
-        - get_url: 
+        - get_url:
             url: https://github.com/coreos/etcd/releases/download/v{{ config.k8s.etcd.version }}/etcd-v{{ config.k8s.etcd.version }}-linux-amd64.tar.gz
             dest: /tmp/etcd-v{{ config.k8s.etcd.version }}-linux-amd64.tar.gz
             validate_certs: no
-          changed_when: false
+          changed_when: False
         - unarchive:
             src: /tmp/etcd-v{{ config.k8s.etcd.version }}-linux-amd64.tar.gz
             dest: /tmp
-          changed_when: false
+          changed_when: False
         - copy:
             src: "{{ item }}"
             dest: /usr/local/bin/{{ item | basename }}
@@ -91,7 +91,8 @@
             --peer-client-cert-auth \
             --peer-trusted-ca-file '{{ config.srvkube.guest }}/ca.pem' \
             --peer-cert-file '{{ config.srvkube.guest }}/{{ ansible_hostname }}-etcd.crt' \
-            --peer-key-file '{{ config.srvkube.guest }}/{{ ansible_hostname }}-etcd.key'
+            --peer-key-file '{{ config.srvkube.guest }}/{{ ansible_hostname }}-etcd.key' \
+            --enable-v2
 
           [Install]
           WantedBy=multi-user.target

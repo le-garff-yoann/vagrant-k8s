@@ -13,8 +13,8 @@ Vagrant.configure('2') do |vconfig|
 
   config['virtual']['nodes'].each do |nodename, node_config|
     vconfig.vm.define nodename do |node|
-      node.vm.box = 'le-garff-yoann/debian9-compose'
-      node.vm.box_version = '1.0.0'
+      node.vm.box = 'debian/buster64'
+      node.vm.box_version = '10.3.0'
   
       node.vm.hostname = nodename
       
@@ -29,15 +29,13 @@ Vagrant.configure('2') do |vconfig|
 
       nat_done = true
 
-      node.vm.provision 'shell', privileged: true,
-        inline: "mkdir -p '#{config['srvkube']['guest']}' && chown vagrant:vagrant '#{config['srvkube']['guest']}'" unless ENV.key?('VAGRANT_K8S_PROVISIONING_STEP')
+      unless ENV.key?('VAGRANT_K8S_PROVISIONING_STEP')
+        node.vm.provision 'shell', privileged: true,
+          inline: "cp -r '/vagrant/#{config['srvkube']['host']}' '#{config['srvkube']['guest']}' && chmod 644 '#{config['srvkube']['guest']}'/* && chmod 755 '#{config['srvkube']['guest']}'"
 
-      node.vm.provision 'file',
-        source: "#{current_dir}/#{config['srvkube']['host']}",
-        destination: config['srvkube']['guest']
-
-      node.vm.provision 'shell', privileged: true,
-        inline: "chmod -R g+r #{config['srvkube']['guest']}"
+        node.vm.provision 'shell', privileged: true,
+          inline: 'apt -y install ansible'
+      end
 
       excluded_features = ENV['VAGRANT_K8S_EXCLUDE_ADDONS'].split(/\s+/) rescue []
 
