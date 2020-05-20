@@ -1,0 +1,12 @@
+---
+- name: Restart flannel service
+  systemd:
+    name: flanneld
+    daemon_reload: yes
+    state: restarted
+
+- name: Restart docker service
+  systemd:
+    name: docker
+    daemon_reload: yes
+    state: restarted

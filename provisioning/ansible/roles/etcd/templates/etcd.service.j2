@@ -1,0 +1,33 @@
+[Unit]
+Description=etcd key-value store
+Documentation=https://github.com/coreos/etcd
+
+[Service]
+User=etcd
+Restart=always
+RestartSec=10s
+LimitNOFILE=40000
+ExecStart=/usr/local/bin/etcd \
+  --name {{ ansible_hostname }} \
+  --data-dir /var/lib/etcd \
+  --initial-advertise-peer-urls http://{{ ansible_hostname }}.{{ k8s_config.virtual.domain }}:2380 \
+  --listen-peer-urls http://0.0.0.0:2380 \
+  --listen-client-urls http://0.0.0.0:2379,http://0.0.0.0:4001 \
+  --advertise-client-urls http://{{ ansible_hostname }}.{{ k8s_config.virtual.domain }}:2379,http://{{ ansible_hostname }}.{{ k8s_config.virtual.domain }}:4001 \
+  --initial-cluster-token etcd-cluster-1 \
+  --initial-cluster {% set c = [] %}{% for k, v in k8s_config._virtual.inventory | dictsort %}{% set d = c.append(k + '=http://' + k + '.' + k8s_config.virtual.domain + ':2380') %}{% endfor %}{{ c | join(',') }} \
+  --initial-cluster-state new \
+  --heartbeat-interval 1000 \
+  --election-timeout 5000 \
+  --client-cert-auth \
+  --trusted-ca-file '{{ k8s_config.srvkube.guest }}/ca.pem' \
+  --cert-file '{{ k8s_config.srvkube.guest }}/{{ ansible_hostname }}-etcd.crt' \
+  --key-file '{{ k8s_config.srvkube.guest }}/{{ ansible_hostname }}-etcd.key' \
+  --peer-client-cert-auth \
+  --peer-trusted-ca-file '{{ k8s_config.srvkube.guest }}/ca.pem' \
+  --peer-cert-file '{{ k8s_config.srvkube.guest }}/{{ ansible_hostname }}-etcd.crt' \
+  --peer-key-file '{{ k8s_config.srvkube.guest }}/{{ ansible_hostname }}-etcd.key' \
+  --enable-v2
+
+[Install]
+WantedBy=multi-user.target

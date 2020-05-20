@@ -1,0 +1,4 @@
+---
+k8s_docker_download_url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}"
+
+k8s_config: {}

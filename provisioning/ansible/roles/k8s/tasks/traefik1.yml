@@ -1,0 +1,26 @@
+---
+- name: Generate and apply Traefik k8s manifest
+  block:
+    - tempfile: # noqa 502
+      register: tempfile
+      changed_when: False
+
+    - shell: >-
+        kubectl create secret generic traefik-cert
+        --from-file='{{ k8s_config.srvkube.guest }}/traefik.crt'
+        --from-file='{{ k8s_config.srvkube.guest }}/traefik.key'
+        --namespace=kube-system --dry-run -o yaml
+        | kubectl apply -f -
+      changed_when: False # noqa 502
+
+    - template: # noqa 502
+        src: traefik1.definition.j2
+        dest: "{{ tempfile.path }}"
+
+    - command: kubectl apply -f {{ tempfile.path }} # noqa 502
+      changed_when: False
+  always:
+    - file: # noqa 502
+        path: "{{ tempfile.path }}"
+        state: absent
+      changed_when: False

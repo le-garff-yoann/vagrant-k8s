@@ -1,0 +1,31 @@
+[Unit]
+Description=Kubernetes Controller Manager Server
+Documentation=https://github.com/kubernetes/kubernetes
+After=network.target etcd.service flanneld.service
+
+[Service]
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=0
+KillMode=process
+ExecStart=/usr/local/bin/kube-controller-manager \
+  --cloud-provider='{{ k8s_config.k8s.service.cloudProvider }}' \
+  --allocate-node-cidrs=true \
+  --cluster-cidr={{ k8s_config.k8s.pod.network }} \
+  --cluster-name=k8s.{{ k8s_config.virtual.domain }} \
+  --service-cluster-ip-range={{ k8s_config.k8s.service.range }} \
+  --leader-elect=true \
+  --root-ca-file='{{ k8s_config.srvkube.guest }}/ca.pem' \
+  --configure-cloud-routes=false \
+  --kubeconfig=/var/lib/kube-controller-manager/kubeconfig \
+  --service-account-private-key-file='{{ k8s_config.srvkube.guest }}/apiserver-key.pem' \
+  --use-service-account-credentials=true \
+  --cluster-signing-cert-file='{{ k8s_config.srvkube.guest }}/ca.pem' \
+  --cluster-signing-key-file='{{ k8s_config.srvkube.guest }}/apiserver-key.pem' \
+  --feature-gates=ExpandPersistentVolumes=true,PodPriority=true \
+  --log-dir=/var/log/kubernetes \
+  --logtostderr=false \
+  --v=2
+
+[Install]
+WantedBy=multi-user.target

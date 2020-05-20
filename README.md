@@ -5,7 +5,7 @@ Deploy a k8s cluster via Vagrant. **It's only meant for testing purposes.**
 ## Others prerequisites
 
 * Ports `80` and `443` availables on your host.
-* `bash`, `jq` and `openssl` installed on your host.
+* `bash`, [`yq`](https://kislyuk.github.io/yq/#installation), `openssl` and [`ansible`](https://www.vagrantup.com/docs/provisioning/ansible.html#setup-requirements) (tested with version 2.9.6) installed on your host.
 
 ## Setup
 
@@ -35,7 +35,7 @@ export \
 
 bash setup.sh
 
-vagrant ssh k8s01
+bash vagrant.sh ssh k8s1
 
 # https://docs.gitlab.com/runner/install/linux-manually.html
 
@@ -55,7 +55,7 @@ export \
 bash setup.sh
 
 # https://gitlab.com/gitlab-org/gitlab-ce/issues/46969
-vagrant ssh k8s01 \
+bash vagrant.sh ssh k8s1 \
   -c 'kubectl create clusterrolebinding --user system:serviceaccount:default:default default-sa-admin --clusterrole cluster-admin'
 ```
 
@@ -64,7 +64,7 @@ vagrant ssh k8s01 \
 ### e.g. nginx `Deployment`
 
 ```bash
-vagrant ssh k8s01
+bash vagrant.sh ssh k8s1
 
 kubectl apply -f - <<EOF
 ---
@@ -126,7 +126,7 @@ curl -Lk https://nginx-1.default.mydomain.io # Welcome to nginx!
 ### e.g. Wordpress with Helm
 
 ```bash
-vagrant ssh k8s01
+bash vagrant.sh ssh k8s1
 
 helm install stable/wordpress \
   --name wordpress-1 \

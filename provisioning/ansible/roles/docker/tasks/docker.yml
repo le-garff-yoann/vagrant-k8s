@@ -1,0 +1,40 @@
+---
+- name: Get Docker apt key
+  apt_key:
+    id: 0EBFCD88
+    url: "{{ k8s_docker_download_url }}/gpg"
+    validate_certs: no
+
+- name: Setup Docker apt repository
+  apt_repository:
+    repo: "deb [arch=amd64] {{ k8s_docker_download_url }} {{ ansible_distribution_release }} stable"
+
+- name: Install docker-ce
+  apt:
+    name: docker-ce
+    update_cache: yes
+
+- name: Configure Execstart in /lib/systemd/system/docker.service
+  replace:
+    dest: /lib/systemd/system/docker.service
+    regexp: "^ExecStart=/usr/bin/dockerd(.*)-H fd://$"
+    replace: 'ExecStart=/usr/bin/dockerd\1-H fd:// {{ item }}'
+  notify: Restart docker service
+  with_items:
+    - "--storage-driver=overlay2 --bip=${FLANNEL_SUBNET} --mtu=${FLANNEL_MTU} --iptables=false --ip-masq=false --ip-forward=true"
+
+- name: Configure EnvronmentFile in /lib/systemd/system/docker.service
+  lineinfile:
+    dest: /lib/systemd/system/docker.service
+    line: "{{ item }}"
+    insertafter: '^\[Service\]$'
+  notify: Restart docker service
+  with_items:
+    - EnvironmentFile=/run/flannel/subnet.env
+
+- name: Start docker service
+  systemd:
+    name: docker
+    daemon_reload: yes
+    enabled: yes
+    state: started

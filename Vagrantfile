@@ -1,59 +1,57 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-require 'json'
+require 'yaml'
 
 Vagrant.configure('2') do |vconfig|
-  current_dir = File.expand_path(File.dirname(__FILE__))
-
-  config = JSON.parse(File.read("#{current_dir}/config.json"))
-  acme_config = JSON.parse(File.read("#{current_dir}acme.config.json")) rescue nil
+  config = YAML.parse_file("#{File.expand_path(File.dirname(__FILE__))}/config.yml").to_ruby
 
   nat_done = false
 
-  config['virtual']['nodes'].each do |nodename, node_config|
-    vconfig.vm.define nodename do |node|
+  nodes = ENV['_VAGRANT_K8S_NODES_ADDR'].split(',').map { |x| x.split(':') }.to_h
+
+  nodes.each_with_index do |node_addr, i|
+    vconfig.vm.define node_addr[0] do |node|
       node.vm.box = 'debian/buster64'
       node.vm.box_version = '10.3.0'
   
-      node.vm.hostname = nodename
+      node.vm.hostname = node_addr[0]
       
-      node.vm.provider 'virtualbox' do |vb|
-        vb.cpus = node_config['cpus']
-        vb.memory = node_config['memory']
+      node.vm.provider :virtualbox do |vb|
+        vb.cpus = config['virtual']['nodes']['cpus']
+        vb.memory = config['virtual']['nodes']['memory']
       end
 
-      node.vm.network 'private_network', ip: node_config['ip']
-      node.vm.network 'forwarded_port', guest: 80, host: 80 unless nat_done
-      node.vm.network 'forwarded_port', guest: 443, host: 443 unless nat_done
+      node.vm.network :private_network, ip: node_addr[1]
+      node.vm.network :forwarded_port, guest: 80, host: 80 unless nat_done
+      node.vm.network :forwarded_port, guest: 443, host: 443 unless nat_done
 
       nat_done = true
 
-      unless ENV.key?('VAGRANT_K8S_PROVISIONING_STEP')
-        node.vm.provision 'shell', privileged: true,
-          inline: "cp -r '/vagrant/#{config['srvkube']['host']}' '#{config['srvkube']['guest']}' && chmod 644 '#{config['srvkube']['guest']}'/* && chmod 755 '#{config['srvkube']['guest']}'"
+      node.vm.provision 'shell', privileged: true, # TODO: Do it with Ansible.
+        inline: "cp -r '/vagrant/#{config['srvkube']['host']}' '#{config['srvkube']['guest']}' && chmod 644 '#{config['srvkube']['guest']}'/* && chmod 755 '#{config['srvkube']['guest']}'"
 
-        node.vm.provision 'shell', privileged: true,
-          inline: 'apt -y install ansible'
-      end
-
-      excluded_features = ENV['VAGRANT_K8S_EXCLUDE_ADDONS'].split(/\s+/) rescue []
-
-      if File.exists?("#{current_dir}/provisioning/ansible/#{ENV['VAGRANT_K8S_PROVISIONING_STEP']}.yml") and
-      excluded_features.count == 0 || ! excluded_features.map { |x| "k8s.#{x}" }.include?(ENV['VAGRANT_K8S_PROVISIONING_STEP'])       
-        node.vm.provision 'ansible_local' do |ansible|
-          ansible.playbook = "provisioning/ansible/#{ENV['VAGRANT_K8S_PROVISIONING_STEP']}.yml"
+      if i+1 == nodes.length
+        node.vm.provision :ansible do |ansible|
+          ansible.playbook = 'provisioning/ansible/site.yml'
+          ansible.limit = 'all'
+          ansible.become = true
 
           ansible.extra_vars = {
-            config: config.merge({ acme: {
-              email: ENV['VAGRANT_K8S_ACME_EMAIL'],
-              caServer: ENV['VAGRANT_K8S_ACME_CASERVER'] || 'https://acme-v02.api.letsencrypt.org/directory'
-            }}),
-            excluded_features: excluded_features
-          }    
-
-          ansible.become = true
-          ansible.verbose = true
+            k8s_config: config.merge({
+              _virtual: {
+                vip: ENV['_VAGRANT_K8S_NODES_VIP'],
+                inventory: nodes # The auto-generated inventory is filled with NAT infos. # TODO: Use ansible.host_vars (https://www.vagrantup.com/docs/provisioning/ansible_common.html#host_vars).
+              },
+              _k8s: {
+                excluded_addons: (ENV['VAGRANT_K8S_EXCLUDE_ADDONS'].split(/\s+/) rescue []),
+                services: { traefik1: { acme: {
+                  email: ENV['VAGRANT_K8S_ACME_EMAIL'],
+                  caServer: ENV['VAGRANT_K8S_ACME_CASERVER'] || 'https://acme-v02.api.letsencrypt.org/directory'
+                }}}
+              }
+            })
+          }
         end
       end
     end

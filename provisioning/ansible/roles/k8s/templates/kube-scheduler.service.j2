@@ -1,0 +1,20 @@
+[Unit]
+Description=Kubernetes Scheduler Server
+Documentation=https://github.com/kubernetes/kubernetes
+After=network.target etcd.service flanneld.service
+
+[Service]
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=0
+KillMode=process
+ExecStart=/usr/local/bin/kube-scheduler \
+  --leader-elect=true \
+  --kubeconfig=/var/lib/kube-scheduler/kubeconfig \
+  --feature-gates=ExpandPersistentVolumes=true,PodPriority=true \
+  --log-dir=/var/log/kubernetes \
+  --logtostderr=false \
+  --v=2
+
+[Install]
+WantedBy=multi-user.target

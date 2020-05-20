@@ -1,11 +1,13 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-SCRIPTDIR=$(dirname $(readlink -f "$0"))
-CONFFILE="${SCRIPTDIR}/config.json"
+scriptdir=$(dirname $(readlink -f "$0"))
+conffile="${scriptdir}/config.yml"
 
-pushd $SCRIPTDIR
+bash $scriptdir/vagrant.sh destroy -f
+RC=$?
 
-vagrant destroy -f
-rm -Rf $(cat $CONFFILE | jq -cr .srvkube.host)
+rm -Rf $(cat $conffile | yq -cr .srvkube.host)
 
 popd
+
+exit $RC

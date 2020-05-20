@@ -1,0 +1,299 @@
+---
+- name: Install our CA into local system CA dir
+  copy:
+    src: "{{ k8s_config.srvkube.guest }}/ca.pem"
+    dest: /usr/local/share/ca-certificates/kube-ca.crt
+    remote_src: yes
+  notify: Update CA Certificates
+
+- stat: # noqa 502
+    path: /usr/local/bin/kube-apiserver
+  register: sym
+
+- command: /usr/local/bin/kube-apiserver --version # noqa 502
+  register: k8s_actual_version
+  changed_when: False
+  when: sym.stat.exists
+
+- name: Download and install k8s binaries
+  block:
+    - unarchive: # noqa 502
+        src: https://github.com/kubernetes/kubernetes/releases/download/v{{ k8s_config.k8s.version }}/kubernetes.tar.gz
+        dest: /tmp
+        remote_src: yes
+
+    - shell: /tmp/kubernetes/cluster/get-kube-binaries.sh # noqa 502 305
+      environment:
+        KUBERNETES_SKIP_CONFIRM: 1
+
+    - unarchive: # noqa 502
+        src: /tmp/kubernetes/server/kubernetes-server-linux-amd64.tar.gz
+        dest: /tmp/kubernetes/server/
+        remote_src: yes
+
+    - copy: # noqa 502
+        src: "{{ item }}"
+        dest: /usr/local/bin/{{ item | basename }}
+        remote_src: yes
+        mode: 0755
+      notify:
+        - Restart kubelet service
+        - Restart kube-apiserver service
+        - Restart kube-controller-manager service
+        - Restart kube-scheduler service
+        - Restart kube-proxy service
+      with_items:
+        - /tmp/kubernetes/server/kubernetes/server/bin/kubelet
+        - /tmp/kubernetes/server/kubernetes/server/bin/kube-apiserver
+        - /tmp/kubernetes/server/kubernetes/server/bin/kube-controller-manager
+        - /tmp/kubernetes/server/kubernetes/server/bin/kube-scheduler
+        - /tmp/kubernetes/server/kubernetes/server/bin/kube-proxy
+        - /tmp/kubernetes/server/kubernetes/server/bin/kubectl
+        - /tmp/kubernetes/server/kubernetes/server/bin/kubeadm
+
+    - file: # noqa 502
+        path: /tmp/kubernetes
+        state: absent
+  when: not sym.stat.exists or k8s_actual_version.stdout is not search("v" + k8s_config.k8s.version)
+
+- name: Create k8s directories
+  file:
+    path: "{{ item }}"
+    state: directory
+  with_items:
+    - /etc/kubernetes
+    - /etc/kubernetes/manifests
+    - /etc/sysconfig
+    - /var/log/kubernetes
+
+- name: Create k8s user directories
+  file:
+    path: "/var/lib/{{ item }}"
+    state: directory
+  with_items:
+    - kubelet
+    - kube-proxy
+    - kube-controller-manager
+    - kube-scheduler
+
+- name: kubectl set-cluster for admin user
+  command: >-
+    kubectl config set-cluster k8s.{{ k8s_config.virtual.domain }}
+    --certificate-authority='{{ k8s_config.srvkube.guest }}/ca.pem'
+    --embed-certs=true
+    --server=https://k8s-api.{{ k8s_config.virtual.domain }}
+  changed_when: False
+
+- name: kubectl set-credentials for admin user
+  command: >-
+    kubectl config set-credentials admin
+    --client-certificate='{{ k8s_config.srvkube.guest }}/admin.pem'
+    --client-key='{{ k8s_config.srvkube.guest }}/admin-key.pem'
+    --embed-certs=true
+  changed_when: False
+
+- name: kubectl set-context for admin user
+  command: kubectl config set-context k8s.{{ k8s_config.virtual.domain }} --cluster=k8s.{{ k8s_config.virtual.domain }} --user=admin
+  changed_when: False
+
+- name: kubectl use-context for admin user
+  command: kubectl config use-context k8s.{{ k8s_config.virtual.domain }} --user=admin
+  changed_when: False
+
+- name: kubectl set-cluster for users
+  command: >-
+    kubectl config set-cluster k8s.{{ k8s_config.virtual.domain }}
+    --certificate-authority='{{ k8s_config.srvkube.guest }}/ca.pem'
+    --embed-certs=true
+    --server=https://k8s-api.{{ k8s_config.virtual.domain }}
+    --kubeconfig=/var/lib/{{ item }}/kubeconfig
+  changed_when: False
+  with_items:
+    - kubelet
+    - kube-proxy
+    - kube-controller-manager
+    - kube-scheduler
+
+- name: kubectl set-credentials for users (except for kubelet)
+  command: >-
+    kubectl config set-credentials {{ item }}
+    --client-certificate='{{ k8s_config.srvkube.guest }}/{{ item }}.pem'
+    --client-key='{{ k8s_config.srvkube.guest }}/{{ item }}-key.pem'
+    --embed-certs=true
+    --kubeconfig=/var/lib/{{ item }}/kubeconfig
+  changed_when: False
+  with_items:
+    - kube-proxy
+    - kube-controller-manager
+    - kube-scheduler
+
+- name: kubectl set-credentials for kubelet
+  command: >-
+    kubectl config set-credentials kubelet
+    --client-certificate='{{ k8s_config.srvkube.guest }}/{{ ansible_hostname }}-worker.pem'
+    --client-key='{{ k8s_config.srvkube.guest }}/{{ ansible_hostname }}-worker-key.pem'
+    --embed-certs=true
+    --kubeconfig=/var/lib/kubelet/kubeconfig
+  changed_when: False
+
+- name: kubectl set-context for users
+  command: >-
+    kubectl config set-context k8s.{{ k8s_config.virtual.domain }}
+    --cluster=k8s.{{ k8s_config.virtual.domain }}
+    --user={{ item }}
+    --kubeconfig=/var/lib/{{ item }}/kubeconfig
+  changed_when: False
+  with_items:
+    - kubelet
+    - kube-proxy
+    - kube-controller-manager
+    - kube-scheduler
+
+- name: kubectl use-context for users
+  command: kubectl config use-context k8s.{{ k8s_config.virtual.domain }} --user={{ item }} --kubeconfig=/var/lib/{{ item }}/kubeconfig
+  changed_when: False
+  with_items:
+    - kubelet
+    - kube-proxy
+    - kube-controller-manager
+    - kube-scheduler
+
+- name: Configure kubectl Bash autocompletion for user root
+  lineinfile:
+    dest: ~/.bashrc
+    line: "{{ item }}"
+  with_items:
+    - source <(kubectl completion bash)
+
+- name: Configure kubectl Bash autocompletion for user vagrant
+  lineinfile:
+    dest: ~/.bashrc
+    line: "{{ item }}"
+  become: yes
+  become_user: vagrant
+  with_items:
+    - source <(kubectl completion bash)
+
+- name: Setup kubelet systemd service unit
+  template:
+    src: kubelet.service.j2
+    dest: /lib/systemd/system/kubelet.service
+  notify:
+    - Restart kubelet service
+    - Restart kube-apiserver service
+    - Restart kube-controller-manager service
+    - Restart kube-scheduler service
+    - Restart kube-proxy service
+
+- name: Start kubelet service
+  systemd:
+    name: kubelet
+    daemon_reload: yes
+    enabled: yes
+    state: started
+
+- name: Setup kube-apiserver systemd service unit
+  template:
+    src: kube-apiserver.service.j2
+    dest: /lib/systemd/system/kube-apiserver.service
+  notify:
+    - Restart kubelet service
+    - Restart kube-apiserver service
+    - Restart kube-controller-manager service
+    - Restart kube-scheduler service
+    - Restart kube-proxy service
+
+- name: Start kube-apiserver service
+  systemd:
+    name: kube-apiserver
+    daemon_reload: yes
+    enabled: yes
+    state: started
+
+- name: Setup kube-controller-manager systemd service unit
+  template:
+    src: kube-controller-manager.service.j2
+    dest: /lib/systemd/system/kube-controller-manager.service
+  notify:
+    - Restart kubelet service
+    - Restart kube-apiserver service
+    - Restart kube-controller-manager service
+    - Restart kube-scheduler service
+    - Restart kube-proxy service
+
+- name: Start kube-controller-manager service
+  systemd:
+    name: kube-controller-manager
+    daemon_reload: yes
+    enabled: yes
+    state: started
+
+- name: Setup kube-proxy systemd service unit
+  template:
+    src: kube-proxy.service.j2
+    dest: /lib/systemd/system/kube-proxy.service
+  notify:
+    - Restart kubelet service
+    - Restart kube-apiserver service
+    - Restart kube-controller-manager service
+    - Restart kube-scheduler service
+    - Restart kube-proxy service
+
+- name: Start kube-proxy service
+  systemd:
+    name: kube-proxy
+    daemon_reload: yes
+    enabled: yes
+    state: started
+
+- name: Setup kube-scheduler systemd service unit
+  template:
+    src: kube-scheduler.service.j2
+    dest: /lib/systemd/system/kube-scheduler.service
+  notify:
+    - Restart kubelet service
+    - Restart kube-apiserver service
+    - Restart kube-controller-manager service
+    - Restart kube-scheduler service
+    - Restart kube-proxy service
+
+- name: Start kube-scheduler service
+  systemd:
+    name: kube-scheduler
+    daemon_reload: yes
+    enabled: yes
+    state: started
+
+- name: Install Keepalived and HAProxy
+  apt:
+    name:
+      - keepalived
+      - haproxy
+
+- name: Configure /etc/keepalived/keepalived.conf
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+  notify: Restart Keepalived service
+
+- name: Configure /etc/haproxy/haproxy.cfg
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+  notify: Restart HAProxy service
+
+- meta: flush_handlers
+
+- name: Start Keepalived service
+  systemd:
+    name: keepalived
+    daemon_reload: yes
+    enabled: yes
+    state: started
+
+- name: Start HAProxy service
+  systemd:
+    name: haproxy
+    daemon_reload: yes
+    enabled: yes
+    state: started

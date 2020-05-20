@@ -1,0 +1,45 @@
+---
+- stat: # noqa 502
+    path: /usr/local/bin/helm
+  register: sym
+
+- command: /usr/local/bin/helm version -c # noqa 502
+  register: helm_actual_version
+  changed_when: False
+  when: sym.stat.exists
+
+- name: Download and install helm binary
+  block:
+    - unarchive: # noqa 502
+        src: https://storage.googleapis.com/kubernetes-helm/helm-v{{ k8s_config.k8s.helm2.version }}-linux-amd64.tar.gz
+        dest: /tmp
+        remote_src: yes
+
+    - copy: # noqa 502
+        src: /tmp/linux-amd64/helm
+        dest: /usr/local/bin/helm
+        remote_src: yes
+        mode: 0755
+  when: not sym.stat.exists or helm_actual_version.stdout is not search("v" + k8s_config.k8s.helm2.version)
+
+- name: Generate and apply Helm ServiceAccount
+  block:
+    - tempfile: # noqa 502
+      register: tempfile
+      changed_when: False
+
+    - template: # noqa 502
+        src: helm2.definition.j2
+        dest: "{{ tempfile.path }}"
+
+    - command: kubectl apply -f {{ tempfile.path }} # noqa 502
+      changed_when: False
+  always:
+    - file: # noqa 502
+        path: "{{ tempfile.path }}"
+        state: absent
+      changed_when: False
+
+- name: Helm 2 initialization # noqa 502
+  command: /usr/local/bin/helm init --service-account tiller
+  changed_when: False

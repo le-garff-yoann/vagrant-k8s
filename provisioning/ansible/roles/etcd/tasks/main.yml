@@ -1,0 +1,61 @@
+---
+- name: Create etcd group
+  group:
+    name: etcd
+    gid: 1501
+
+- name: Create etcd user
+  user:
+    name: etcd
+    uid: 1501
+    groups: etcd, vagrant
+    shell: /bin/false
+    create_home: yes
+    home: /var/lib/etcd
+
+- stat: # noqa 502
+    path: /usr/local/bin/etcd
+  register: sym
+
+- command: etcd --version # noqa 502
+  register: etcd_actual_version
+  changed_when: False
+  when: sym.stat.exists
+
+- name: Download and install etcd binaries
+  block:
+    - unarchive: # noqa 502
+        src: https://github.com/coreos/etcd/releases/download/v{{ k8s_config.k8s.etcd.version }}/etcd-v{{ k8s_config.k8s.etcd.version }}-linux-amd64.tar.gz
+        dest: /tmp
+        remote_src: yes
+      changed_when: False
+
+    - copy: # noqa 502
+        src: "{{ item }}"
+        dest: /usr/local/bin/{{ item | basename }}
+        remote_src: yes
+        mode: 0755
+      notify: Restart etcd service
+      with_items:
+        - /tmp/etcd-v{{ k8s_config.k8s.etcd.version }}-linux-amd64/etcd
+        - /tmp/etcd-v{{ k8s_config.k8s.etcd.version }}-linux-amd64/etcdctl
+
+    - file: # noqa 502
+        path: /tmp/etcd-v{{ k8s_config.k8s.etcd.version }}-linux-amd64
+        state: absent
+  when: not sym.stat.exists or etcd_actual_version.stdout is not search(k8s_config.k8s.etcd.version)
+
+- name: Create etcd systemd service unit
+  template:
+    src: etcd.service.j2
+    dest: /lib/systemd/system/etcd.service
+  notify: Restart etcd service
+
+- meta: flush_handlers
+
+- name: Start etcd service
+  systemd:
+    name: etcd
+    daemon_reload: yes
+    enabled: yes
+    state: started

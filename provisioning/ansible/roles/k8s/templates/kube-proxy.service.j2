@@ -1,0 +1,22 @@
+[Unit]
+Description=Kubernetes Proxy Server
+Documentation=https://github.com/kubernetes/kubernetes
+After=network.target etcd.service flanneld.service
+
+[Service]
+Restart=on-failure
+RestartSec=5s
+StartLimitInterval=0
+KillMode=process
+ExecStart=/usr/local/bin/kube-proxy \
+  --kubeconfig=/var/lib/kube-proxy/kubeconfig
+  --conntrack-max-per-core=131072 \
+  --proxy-mode=iptables \
+  --resource-container="" \
+  --cluster-cidr={{ k8s_config.k8s.pod.network }} \
+  --log-dir=/var/log/kubernetes \
+  --logtostderr=false \
+  --v=2
+
+[Install]
+WantedBy=multi-user.target
