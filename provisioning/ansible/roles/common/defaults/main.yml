@@ -1,0 +1,2 @@
+---
+common_cacertfile_path: /usr/local/share/ca-certificates/kube-ca.crt

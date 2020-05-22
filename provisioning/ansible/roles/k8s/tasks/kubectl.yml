@@ -1,0 +1,29 @@
+---
+- import_tasks: kube/install-binary.yml
+  vars:
+    k8s_kube_binary_name: kubectl
+    k8s_kube_binary_version_flag: version
+    k8s_kube_binary_version_extraflags: --client
+    k8s_kube_binary_has_a_service: no
+    k8s_kube_binary_certs:
+      - src: "{{ k8s_kubectl_admin_cacertfile_srcpath }}"
+        dest: "{{ k8s_kubectl_admin_cacertfile_path }}"
+      - src: "{{ k8s_kubectl_admin_certfile_srcpath }}"
+        dest: "{{ k8s_kubectl_admin_certfile_path }}"
+      - src: "{{ k8s_kubectl_admin_keyfile_srcpath }}"
+        dest: "{{ k8s_kubectl_admin_keyfile_path }}"
+
+- import_tasks: kubectl/kubeconfig.yml
+  vars:
+    k8s_kubeconfig_component: admin
+    k8s_kubeconfig_component_cacerfile: "{{ k8s_kubectl_admin_cacertfile_path }}"
+    k8s_kubeconfig_component_cerfile: "{{ k8s_kubectl_admin_certfile_path }}"
+    k8s_kubeconfig_component_keyfile: "{{ k8s_kubectl_admin_keyfile_path }}"
+
+- name: Configure kubectl Bash autocompletion for root and extra users
+  lineinfile:
+    dest: ~/.bashrc
+    line: source <({{ (k8s_binaries_path + '/kubectl') | quote }} completion bash)
+  become: yes
+  become_user: "{{ item }}"
+  with_items: "{{  [ 'root' ] + k8s_kubectl_extra_users }}"

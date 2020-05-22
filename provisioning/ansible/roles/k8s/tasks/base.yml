@@ -1,0 +1,34 @@
+---
+- name: Export of some variables as facts
+  set_fact:
+    k8s_domain: "{{ k8s_domain }}"
+    k8s_services_range: "{{ k8s_services_range }}"
+    k8s_pod_network: "{{ k8s_pod_network }}"
+
+- name: Add {{ k8s_masters_vip_name }} to /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    line: "{{ k8s_masters_vip }} {{ k8s_masters_vip_name }}.{{ ansible_domain }} {{ k8s_masters_vip_name }}"
+
+- name: Create the group
+  group:
+    name: "{{ k8s_group }}"
+
+- name: Create the user
+  user:
+    name: "{{ k8s_user }}"
+    groups: "{{ k8s_group }}, {{ etcd_group }}"
+    shell: /bin/false
+    home: "{{ k8s_etcdir }}"
+
+- name: Create bases directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ k8s_user }}"
+    group: "{{ k8s_group }}"
+  with_items:
+    - "{{ k8s_etcdir }}"
+    - "{{ k8s_libdir }}"
+    - "{{ k8s_certsdir }}"
+    - "{{ k8s_logsdir }}"

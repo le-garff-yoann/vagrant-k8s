@@ -1,0 +1,24 @@
+[Unit]
+Description=Network fabric for containers
+Documentation=https://github.com/coreos/flannel
+After=network.target
+After=network-online.target
+Wants=network-online.target
+After=etcd.service
+Before=docker.service
+
+[Service]
+Restart=always
+RestartSec=5
+ExecStart={{ container_fabric_flannel_binary_path | quote }} \
+  -ip-masq=true \
+  -etcd-endpoints={% for item in groups['k8s'] %}{{ 'https://' + item + '.' + ansible_domain + ':4001,' }}{% endfor %} \
+  -etcd-cafile={{ etcd_cacertfile_path | quote }} \
+  -etcd-certfile={{ etcd_certfile_path | quote }} \
+  -etcd-keyfile={{ etcd_keyfile_path | quote }} \
+  -iface={{ container_fabric_flannel_overlay_interface }} \
+  -public-ip={{ hostvars[ansible_hostname].ip }} \
+  2>&1
+
+[Install]
+WantedBy=multi-user.target

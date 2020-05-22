@@ -1,0 +1,8 @@
+---
+container_fabric_docker_repo_download_url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}"
+container_fabric_flannel_version: 0.9.1
+container_fabric_flannel_binary_download_url: https://github.com/coreos/flannel/releases/download/v{{ container_fabric_flannel_version }}/flanneld-amd64
+container_fabric_flannel_binary_path: /usr/local/bin/flanneld
+container_fabric_flannel_network: 10.1.0.0/8
+container_fabric_flannel_subnetlen: 24
+container_fabric_flannel_overlay_interface: eth1

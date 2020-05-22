@@ -1,2 +1,46 @@
 ---
-k8s_config: {}
+k8s_version: 1.17.0
+k8s_binaries_download_url: https://github.com/kubernetes/kubernetes/releases/download/v{{ k8s_version }}/kubernetes.tar.gz
+k8s_binaries_path: /usr/local/bin
+k8s_domain: k8s.{{ ansible_domain }}
+k8s_kubectl_extra_users: []
+k8s_services_range: 10.2.0.0/16
+k8s_services_node_port_range: 30000-40000
+k8s_pod_network: 10.1.0.0/16
+k8s_cluster_dns: 10.2.0.10
+k8s_masters_vip: 192.168.0.100
+k8s_masters_vip_name: k8s-apiserver
+k8s_masters_noschedule: yes
+k8s_nodes_wait_for_gathering_retries: 60
+k8s_nodes_wait_for_gathering_delay: 5
+k8s_etcdir: /etc/kubernetes
+k8s_manifestsdir: "{{ k8s_etcdir }}/manifests"
+k8s_libdir: /var/lib/kubernetes
+k8s_certsdir: "{{ k8s_libdir }}/ssl"
+k8s_logsdir: /var/log/kubernetes
+k8s_user: kube
+k8s_group: "{{ k8s_user }}"
+k8s_kubeapiserver_insecure_port: 8080
+k8s_kubeapiserver_secure_port: 6443
+k8s_kubeapiserver_cacertfile_path: "{{ k8s_certsdir }}/kube-apiserver-ca.crt"
+k8s_kubeapiserver_certfile_path: "{{ k8s_certsdir }}/kube-apiserver.crt"
+k8s_kubeapiserver_keyfile_path: "{{ k8s_certsdir }}/kube-apiserver.key"
+k8s_kubecontrollermanager_cacertfile_path: "{{ k8s_certsdir }}/kube-controller-manager-ca.crt"
+k8s_kubecontrollermanager_certfile_path: "{{ k8s_certsdir }}/kube-controller-manager.crt"
+k8s_kubecontrollermanager_keyfile_path: "{{ k8s_certsdir }}/kube-controller-manager.key"
+k8s_kubescheduler_cacertfile_path: "{{ k8s_certsdir }}/kube-scheduler-ca.crt"
+k8s_kubescheduler_certfile_path: "{{ k8s_certsdir }}/kube-scheduler.crt"
+k8s_kubescheduler_keyfile_path: "{{ k8s_certsdir }}/kube-scheduler.key"
+k8s_kubeproxy_cacertfile_path: "{{ k8s_certsdir }}/kube-proxy-ca.crt"
+k8s_kubeproxy_certfile_path: "{{ k8s_certsdir }}/kube-proxy.crt"
+k8s_kubeproxy_keyfile_path: "{{ k8s_certsdir }}/kube-proxy.key"
+k8s_kubelet_cacertfile_path: "{{ k8s_certsdir }}/kubelet-ca.crt"
+k8s_kubelet_certfile_path: "{{ k8s_certsdir }}/kubelet.crt"
+k8s_kubelet_keyfile_path: "{{ k8s_certsdir }}/kubelet.key"
+k8s_kubectl_admin_cacertfile_path: "{{ k8s_certsdir }}/admin-ca.crt"
+k8s_kubectl_admin_certfile_path: "{{ k8s_certsdir }}/admin.crt"
+k8s_kubectl_admin_keyfile_path: "{{ k8s_certsdir }}/admin.key"
+k8s_kubecontrollermanager_kubeconfig: "{{ k8s_libdir }}/kube-controller-manager.kubeconfig"
+k8s_kubescheduler_kubeconfig: "{{ k8s_libdir }}/kube-scheduler.kubeconfig"
+k8s_kubeproxy_kubeconfig: "{{ k8s_libdir }}/kube-proxy.kubeconfig"
+k8s_kubelet_kubeconfig: "{{ k8s_libdir }}/kubelet.kubeconfig"

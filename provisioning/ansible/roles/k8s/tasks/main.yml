@@ -1,20 +1,34 @@
 ---
-- name: Setup k8s
-  import_tasks: k8s.yml
+- block:
+    - import_tasks: downloads.yml
 
-- name: Wait for k8s to be reachable on {{ k8s_config._virtual.vip }}:443
-  wait_for:
-    host: "{{ k8s_config._virtual.vip }}"
-    port: 443
+    - import_tasks: base.yml
 
-- name: Setup CoreDNS on k8s
-  import_tasks: coredns.yml
+    - import_tasks: kubectl.yml
 
-- name: Setup NFS dynamic storage on k8s
-  import_tasks: nfs-dynamic-storage.yml
+    - import_tasks: kube-apiserver.yml
+      when: "'k8s_masters' in group_names"
 
-- name: Setup Traefik v1 on k8s
-  import_tasks: traefik1.yml
+    - import_tasks: kube-controller-manager.yml
+      when: "'k8s_masters' in group_names"
 
-- name: Setup Helm v2 on k8s
-  import_tasks: helm2.yml
+    - import_tasks: kube-scheduler.yml
+      when: "'k8s_masters' in group_names"
+
+    - import_tasks: keepalived.yml
+      when: "'k8s_masters' in group_names"
+
+    - import_tasks: haproxy.yml
+      when: "'k8s_masters' in group_names"
+
+    - import_tasks: kube-proxy.yml
+
+    - import_tasks: kubelet.yml
+
+    - meta: flush_handlers
+
+    - import_tasks: cluster-configuration.yml
+      run_once: True
+      delegate_to: "{{ groups['k8s_masters'] | first }}"
+  always:
+    - import_tasks: cleanup.yml

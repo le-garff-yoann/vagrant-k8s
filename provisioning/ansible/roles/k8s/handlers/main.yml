@@ -1,28 +1,13 @@
 ---
-- name: Restart docker service
-  systemd:
-    name: docker
-    daemon_reload: yes
-    state: restarted
-
-- name: Update CA Certificates
-  command: update-ca-certificates
-
-- name: Restart Keepalived service
-  systemd:
-    name: keepalived
-    daemon_reload: yes
-    state: restarted
-
-- name: Restart HAProxy service
-  systemd:
-    name: haproxy
-    daemon_reload: yes
-    state: restarted
-
 - name: Restart kubelet service
   systemd:
     name: kubelet
+    daemon_reload: yes
+    state: restarted
+
+- name: Restart kube-proxy service
+  systemd:
+    name: kube-proxy
     daemon_reload: yes
     state: restarted
 
@@ -44,8 +29,14 @@
     daemon_reload: yes
     state: restarted
 
-- name: Restart kube-proxy service
+- name: Restart Keepalived service
   systemd:
-    name: kube-proxy
+    name: keepalived
+    daemon_reload: yes
+    state: restarted
+
+- name: Restart HAProxy service
+  systemd:
+    name: haproxy
     daemon_reload: yes
     state: restarted

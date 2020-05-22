@@ -1,8 +1,0 @@
----
-- name: Setup flannel
-  import_tasks: flannel.yml
-
-- name: Setup docker
-  import_tasks: docker.yml
-
-- meta: flush_handlers

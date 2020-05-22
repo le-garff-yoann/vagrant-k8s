@@ -1,0 +1,11 @@
+---
+- import_tasks: kube/install-binary.yml
+  vars:
+    k8s_kube_binary_name: kube-apiserver
+    k8s_kube_binary_certs:
+      - src: "{{ k8s_kubeapiserver_cacertfile_srcpath }}"
+        dest: "{{ k8s_kubeapiserver_cacertfile_path }}"
+      - src: "{{ k8s_kubeapiserver_certfile_srcpath }}"
+        dest: "{{ k8s_kubeapiserver_certfile_path }}"
+      - src: "{{ k8s_kubeapiserver_keyfile_srcpath }}"
+        dest: "{{ k8s_kubeapiserver_keyfile_path }}"

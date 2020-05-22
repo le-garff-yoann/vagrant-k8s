@@ -1,0 +1,30 @@
+---
+- name: Create kubernetes manifests directory
+  file:
+    path: "{{ k8s_manifestsdir }}"
+    state: directory
+
+- import_tasks: kube/install-binary.yml
+  vars:
+    k8s_kube_binary_name: kubelet
+    k8s_kube_binary_certs:
+      - src: "{{ k8s_kubelet_cacertfile_srcpath }}"
+        dest: "{{ k8s_kubelet_cacertfile_path }}"
+      - src: "{{ k8s_kubelet_certfile_srcpath }}"
+        dest: "{{ k8s_kubelet_certfile_path }}"
+      - src: "{{ k8s_kubelet_keyfile_srcpath }}"
+        dest: "{{ k8s_kubelet_keyfile_path }}"
+
+- import_tasks: kubectl/kubeconfig.yml
+  vars:
+    k8s_kubeconfig_component: kubelet
+    k8s_kubeconfig_component_cacerfile: "{{ k8s_kubelet_cacertfile_path }}"
+    k8s_kubeconfig_component_cerfile: "{{ k8s_kubelet_certfile_path }}"
+    k8s_kubeconfig_component_keyfile: "{{ k8s_kubelet_keyfile_path }}"
+    k8s_kubeconfig_component_kubeconfig: "{{ k8s_kubelet_kubeconfig }}"
+
+- name: Set user and group as owner of {{ k8s_kubelet_kubeconfig }}
+  file:
+    path: "{{ k8s_kubelet_kubeconfig }}"
+    owner: "{{ k8s_user }}"
+    group: "{{ k8s_group }}"

@@ -1,0 +1,26 @@
+---
+- import_tasks: kube/install-binary.yml
+  vars:
+    k8s_kube_binary_name: kube-controller-manager
+    k8s_kube_binary_certs:
+      - src: "{{ k8s_kubecontrollermanager_cacertfile_srcpath }}"
+        dest: "{{ k8s_kubecontrollermanager_cacertfile_path }}"
+      - src: "{{ k8s_kubecontrollermanager_certfile_srcpath }}"
+        dest: "{{ k8s_kubecontrollermanager_certfile_path }}"
+      - src: "{{ k8s_kubecontrollermanager_keyfile_srcpath }}"
+        dest: "{{ k8s_kubecontrollermanager_keyfile_path }}"
+
+- import_tasks: kubectl/kubeconfig.yml
+  vars:
+    k8s_kubeconfig_component: kube-controller-manager
+    k8s_kubeconfig_component_cacerfile: "{{ k8s_kubecontrollermanager_cacertfile_path }}"
+    k8s_kubeconfig_component_cerfile: "{{ k8s_kubecontrollermanager_certfile_path }}"
+    k8s_kubeconfig_component_keyfile: "{{ k8s_kubecontrollermanager_keyfile_path }}"
+    k8s_kubeconfig_component_kubeconfig: "{{ k8s_kubecontrollermanager_kubeconfig }}"
+
+- name: Set kubernetes user and group as owner of {{ k8s_kubecontrollermanager_kubeconfig }}
+  file:
+    path: "{{ k8s_kubecontrollermanager_kubeconfig }}"
+    owner: "{{ k8s_user }}"
+    group: "{{ k8s_group }}"
+    mode: 0640

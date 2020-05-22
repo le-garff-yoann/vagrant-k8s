@@ -1,0 +1,26 @@
+---
+- name: Create the global tempdir {{ k8s_binaries_download_url }}
+  tempfile:
+    state: directory
+  register: reg_global_tempdir
+  changed_when: False
+
+- name: Download and unarchive {{ k8s_binaries_download_url }}
+  unarchive:
+    src: "{{ k8s_binaries_download_url }}"
+    dest: "{{ reg_global_tempdir.path }}"
+    remote_src: yes
+  changed_when: False
+
+- name: Download the binaries into {{ reg_global_tempdir.path }} # noqa 305
+  shell: "{{ (reg_global_tempdir.path + '/kubernetes/cluster/get-kube-binaries.sh') | quote }}"
+  environment:
+    KUBERNETES_SKIP_CONFIRM: 1
+  changed_when: False
+
+- name: Unarchive the binaries to {{ reg_global_tempdir.path }}/kubernetes/server
+  unarchive:
+    src: "{{ reg_global_tempdir.path }}/kubernetes/server/kubernetes-server-linux-amd64.tar.gz"
+    dest: "{{ reg_global_tempdir.path }}/kubernetes/server"
+    remote_src: yes
+  changed_when: False

@@ -1,0 +1,68 @@
+---
+- name: Enable IP forwarding at the kernel level
+  sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+
+# FIXME: Should be a finer rule.
+- name: Enable IP forwarding at the iptables level
+  iptables:
+    chain: FORWARD
+    policy: ACCEPT
+
+- name: Set the configuration for flannel in etcd
+  command: >-
+    etcdctl set /coreos.com/network/config
+    {{
+      {
+        "Network": container_fabric_flannel_network,
+        "SubnetLen": container_fabric_flannel_subnetlen,
+        "Backend": { "Type": "vxlan" }
+      } | to_json | quote
+    }}
+  environment:
+    ETCDCTL_API: "2"
+    ETCDCTL_ENDPOINTS: "{% for item in groups['k8s'] %}{{ 'https://' + item + '.' + ansible_domain + ':4001,' }}{% endfor %}"
+    ETCDCTL_CERT_FILE: "{{ etcd_certfile_path }}"
+    ETCDCTL_KEY_FILE: "{{ etcd_keyfile_path }}"
+  changed_when: False
+  run_once: True
+  delegate_to: "{{ groups['k8s'] | first }}"
+
+- name: Stat {{ container_fabric_flannel_binary_path }}
+  stat:
+    path: "{{ container_fabric_flannel_binary_path }}"
+  register: reg_sym
+
+- name: Get {{ container_fabric_flannel_binary_path }} version
+  command: "{{ container_fabric_flannel_binary_path | quote }} --version"
+  register: reg
+  changed_when: False
+  when: reg_sym.stat.exists
+
+- name: Download and install {{ container_fabric_flannel_binary_path }}
+  get_url:
+    url: "{{ container_fabric_flannel_binary_download_url }}"
+    dest: "{{ container_fabric_flannel_binary_path }}"
+  notify: Restart flannel service
+  when: not reg_sym.stat.exists or reg.stdout is not search("v" + container_fabric_flannel_version)
+
+- name: Set exec permissions on {{ container_fabric_flannel_binary_path }}
+  file:
+    path: "{{ container_fabric_flannel_binary_path }}"
+    mode: 0755
+
+- name: Setup the flannel systemd service unit
+  template:
+    src: flanneld.service.j2
+    dest: /lib/systemd/system/flanneld.service
+  notify:
+    - Restart flannel service
+    - Restart docker service
+
+- name: Start the flannel service
+  systemd:
+    name: flanneld
+    daemon_reload: yes
+    enabled: yes
+    state: started

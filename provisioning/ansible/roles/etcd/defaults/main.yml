@@ -1,2 +1,16 @@
 ---
-k8s_config: {}
+etcd_version: 3.4.4
+etcd_user: etcd
+etcd_group: "{{ etcd_user }}"
+etcd_homedir: /etc/etcd
+etcd_certsdir: "{{ etcd_homedir }}/ssl"
+etcd_datadir: /var/lib/etcd
+etcd_binary_download_url: https://github.com/coreos/etcd/releases/download/v{{ etcd_version }}/etcd-v{{ etcd_version }}-linux-amd64.tar.gz
+etcd_binary_path: /usr/local/bin/etcd
+etcd_cacertfile_path: "{{ etcd_certsdir }}/etcd-ca.crt"
+etcd_certfile_path: "{{ etcd_certsdir }}/etcd.crt"
+etcd_keyfile_path: "{{ etcd_certsdir }}/etcd.key"
+etcd_initial_cluster_state: new
+etcd_initial_cluster_token: etcd-cluster
+etcd_heartbeat_interval: 1000
+etcd_election_timeout: 5000

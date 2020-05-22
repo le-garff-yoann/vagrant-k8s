@@ -1,37 +1,42 @@
 [Unit]
 Description=Kubernetes API Server
 Documentation=https://github.com/kubernetes/kubernetes
-After=network.target etcd.service flanneld.service
+After=network.target
 
 [Service]
 Restart=on-failure
 RestartSec=5s
 StartLimitInterval=0
 KillMode=process
-ExecStart=/usr/local/bin/kube-apiserver \
+User={{ k8s_user }}
+Group={{ k8s_group }}
+ExecStart={{ (k8s_binaries_path + '/kube-apiserver') | quote }} \
   --bind-address=0.0.0.0 \
-  --advertise-address={{ k8s_config._virtual.inventory[ansible_hostname] }} \
   --admission-control=NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,DefaultStorageClass,ResourceQuota,DefaultTolerationSeconds,NodeRestriction \
-  --apiserver-count={{ k8s_config._virtual.inventory | length }} \
-  --etcd-servers={% set c = [] %}{% for k, v in k8s_config._virtual.inventory | dictsort %}{% set d = c.append('http://' + k + '.' + k8s_config.virtual.domain + ':4001') %}{% endfor %}{{ c | join(',') }} \
   --kubelet-preferred-address-types=InternalIP,Hostname,ExternalIP,LegacyHostIP \
-  --service-node-port-range={{ k8s_config.k8s.service.nodePortRange }} \
-  --secure-port=6443 \
-  --insecure-port=8080 \
-  --service-cluster-ip-range={{ k8s_config.k8s.service.range }} \
   --runtime-config=api/all=true,batch/v2alpha1=true,authentication.k8s.io/v1beta1=true,authorization.k8s.io/v1beta1=true,rbac.authorization.k8s.io/v1beta1=true,apps/v1beta2=true,apps/v1=true,apps/v1/networkpolicies=true \
   --feature-gates=ExpandPersistentVolumes=true,PodPriority=true \
   --anonymous-auth=false \
   --authorization-mode=Node,RBAC \
-  --client-ca-file='{{ k8s_config.srvkube.guest }}/ca.pem' \
-  --tls-cert-file='{{ k8s_config.srvkube.guest }}/apiserver.pem' \
-  --tls-private-key-file='{{ k8s_config.srvkube.guest }}/apiserver-key.pem' \
-  --kubelet-certificate-authority='{{ k8s_config.srvkube.guest }}/ca.pem' \
-  --kubelet-client-certificate='{{ k8s_config.srvkube.guest }}/{{ ansible_hostname }}-worker.pem' \
-  --kubelet-client-key='{{ k8s_config.srvkube.guest }}/{{ ansible_hostname }}-worker-key.pem' \
-  --log-dir=/var/log/kubernetes \
   --logtostderr=false \
-  --v=2
+  --v=2 \
+  --advertise-address={{ hostvars[ansible_hostname].ip }} \
+  --apiserver-count={{ groups['k8s_masters'] | length }} \
+  --etcd-servers={% for item in groups['k8s'] %}{{ 'https://' + item + '.' + ansible_domain + ':4001,' }}{% endfor %} \
+  --etcd-cafile={{ etcd_cacertfile_path | quote }} \
+  --etcd-certfile={{ etcd_certfile_path | quote }} \
+  --etcd-keyfile={{ etcd_keyfile_path | quote }} \
+  --service-node-port-range={{ k8s_services_node_port_range | quote }} \
+  --insecure-port={{ k8s_kubeapiserver_insecure_port | quote }} \
+  --secure-port={{ k8s_kubeapiserver_secure_port | quote }} \
+  --service-cluster-ip-range={{ k8s_services_range | quote }} \
+  --client-ca-file={{ k8s_kubeapiserver_cacertfile_path | quote }} \
+  --tls-cert-file={{ k8s_kubeapiserver_certfile_path | quote }} \
+  --tls-private-key-file={{ k8s_kubeapiserver_keyfile_path | quote }} \
+  --kubelet-certificate-authority={{ k8s_kubelet_cacertfile_path | quote }} \
+  --kubelet-client-certificate={{ k8s_kubelet_certfile_path | quote }} \
+  --kubelet-client-key={{ k8s_kubelet_keyfile_path | quote }} \
+  --log-dir={{ k8s_logsdir | quote }}
 
 [Install]
 WantedBy=multi-user.target

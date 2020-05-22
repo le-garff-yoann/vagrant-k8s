@@ -1,51 +1,100 @@
 ---
-- name: Create etcd group
+- name: Export of some variables as facts
+  set_fact:
+    etcd_group: "{{ etcd_group }}"
+    etcd_cacertfile_path: "{{ etcd_cacertfile_path }}"
+    etcd_certfile_path: "{{ etcd_certfile_path }}"
+    etcd_keyfile_path: "{{ etcd_keyfile_path }}"
+
+- name: Create the group
   group:
-    name: etcd
-    gid: 1501
+    name: "{{ etcd_group }}"
+  notify: Restart etcd service
 
-- name: Create etcd user
+- name: Create the user
   user:
-    name: etcd
-    uid: 1501
-    groups: etcd, vagrant
+    name: "{{ etcd_user }}"
+    groups: "{{ etcd_group }}"
     shell: /bin/false
-    create_home: yes
-    home: /var/lib/etcd
+    home: "{{ etcd_homedir }}"
+  notify: Restart etcd service
 
-- stat: # noqa 502
-    path: /usr/local/bin/etcd
-  register: sym
+- name: Create bases directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ etcd_user }}"
+    group: "{{ etcd_group }}"
+  with_items:
+    - "{{ etcd_homedir }}"
+    - "{{ etcd_certsdir }}"
+    - "{{ etcd_datadir }}"
 
-- command: etcd --version # noqa 502
-  register: etcd_actual_version
+- name: Copy certs
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dst }}"
+    owner: "{{ etcd_user }}"
+    group: "{{ etcd_group }}"
+    mode: 0640
+  notify: Restart etcd service
+  with_items:
+    - src: "{{ etcd_cacertfile_srcpath }}"
+      dst: "{{ etcd_cacertfile_path }}"
+    - src: "{{ etcd_certfile_srcpath }}"
+      dst: "{{ etcd_certfile_path }}"
+    - src: "{{ etcd_keyfile_srcpath }}"
+      dst: "{{ etcd_keyfile_path }}"
+
+- name: Stat {{ etcd_binary_path }}
+  stat:
+    path: "{{ etcd_binary_path }}"
+  register: reg_sym
+
+- name: Get {{ etcd_binary_path }} version
+  command: "{{ etcd_binary_path | quote }} --version"
+  register: reg
   changed_when: False
-  when: sym.stat.exists
+  when: reg_sym.stat.exists
 
-- name: Download and install etcd binaries
-  block:
-    - unarchive: # noqa 502
-        src: https://github.com/coreos/etcd/releases/download/v{{ k8s_config.k8s.etcd.version }}/etcd-v{{ k8s_config.k8s.etcd.version }}-linux-amd64.tar.gz
-        dest: /tmp
+- block:
+    - name: Create a tempdir for downloading binaries
+      tempfile:
+        state: directory
+      register: reg_tempdir
+      changed_when: False
+
+    - name: Unarchive {{ etcd_binary_download_url }} to {{ reg_tempdir.path }}
+      unarchive:
+        src: "{{ etcd_binary_download_url }}"
+        dest: "{{ reg_tempdir.path }}"
         remote_src: yes
       changed_when: False
 
-    - copy: # noqa 502
+    - name: Copy binaries to /usr/local/bin
+      copy:
         src: "{{ item }}"
         dest: /usr/local/bin/{{ item | basename }}
         remote_src: yes
         mode: 0755
       notify: Restart etcd service
       with_items:
-        - /tmp/etcd-v{{ k8s_config.k8s.etcd.version }}-linux-amd64/etcd
-        - /tmp/etcd-v{{ k8s_config.k8s.etcd.version }}-linux-amd64/etcdctl
+        - "{{ reg_tempdir.path }}/etcd-v{{ etcd_version }}-linux-amd64/etcd"
+        - "{{ reg_tempdir.path }}/etcd-v{{ etcd_version }}-linux-amd64/etcdctl"
 
-    - file: # noqa 502
-        path: /tmp/etcd-v{{ k8s_config.k8s.etcd.version }}-linux-amd64
+    - name: Delete {{ reg_tempdir.path }}/etcd-v{{ etcd_version }}-linux-amd64
+      file:
+        path: "{{ reg_tempdir.path }}/etcd-v{{ etcd_version }}-linux-amd64"
         state: absent
-  when: not sym.stat.exists or etcd_actual_version.stdout is not search(k8s_config.k8s.etcd.version)
+  always:
+    - name: Delete tempdir {{ reg_tempdir.path }}
+      file:
+        path: "{{ reg_tempdir.path }}"
+        state: absent
+      changed_when: False
+  when: not reg_sym.stat.exists or reg.stdout is not search(etcd_version)
 
-- name: Create etcd systemd service unit
+- name: Create systemd service unit
   template:
     src: etcd.service.j2
     dest: /lib/systemd/system/etcd.service
@@ -53,7 +102,7 @@
 
 - meta: flush_handlers
 
-- name: Start etcd service
+- name: Start the service
   systemd:
     name: etcd
     daemon_reload: yes

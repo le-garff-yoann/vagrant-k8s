@@ -1,145 +1,52 @@
 # vagrant-k8s
 
-Deploy a k8s cluster via Vagrant. **It's only meant for testing purposes.**
+Deploy a multi-master, multi-node Kubernetes cluster [preinstalled with some addons](provisioning/ansible/roles/k8s-addons) using Vagrant and Ansible.
+**It's mostly meant for testing purposes.**
 
-## Others prerequisites
+## Prerequisites
 
-* Ports `80` and `443` availables on your host.
-* `bash`, [`yq`](https://kislyuk.github.io/yq/#installation), `openssl` and [`ansible`](https://www.vagrantup.com/docs/provisioning/ansible.html#setup-requirements) (tested with version 2.9.6) installed on your host.
-
-## Setup
-
-* With self signed certificates for `Ingress`
-
-```bash
-bash setup.sh
-```
-
-* With [ACME (Let's Encrypt)](https://docs.traefik.io/configuration/acme) for `Ingress`
-
-```bash
-# export \
-#   VAGRANT_K8S_ACME_CASERVER=https://acme-staging-v02.api.letsencrypt.org/directory
-
-export \
-  VAGRANT_K8S_ACME_EMAIL=used4registration@gmail.com
-
-bash setup.sh
-```
-
-* With a [Gitlab Runner](https://docs.gitlab.com/runner)
-
-```bash
-export \
-  VAGRANT_K8S_ACME_EMAIL=used4registration@gmail.com
-
-bash setup.sh
-
-bash vagrant.sh ssh k8s1
-
-# https://docs.gitlab.com/runner/install/linux-manually.html
-
-su - gitlab-runner
-
-echo 'tty -s' >> ~/.bashrc
-helm init --client-only
-```
-
-* For the [automatic Gitlab integration](https://docs.gitlab.com/ee/user/project/clusters)
-
-```bash
-export \
-  VAGRANT_K8S_EXCLUDE_ADDONS='traefik1 helm2' \
-  VAGRANT_K8S_APISERVER_CERT_PUBLIC_DOMAIN=mydomain.io
-
-bash setup.sh
-
-# https://gitlab.com/gitlab-org/gitlab-ce/issues/46969
-bash vagrant.sh ssh k8s1 \
-  -c 'kubectl create clusterrolebinding --user system:serviceaccount:default:default default-sa-admin --clusterrole cluster-admin'
-```
+- `bash` and [Ansible](https://www.vagrantup.com/docs/provisioning/ansible.html#setup-requirements) (tested with version 2.9.6) installed on your host.
+- `openssl` if you plan to use `tls-bootstraping.sh` to automatically generate the cluster CA and what comes out of it.
 
 ## Usage
 
-### e.g. nginx `Deployment`
+### Configuration
 
 ```bash
-bash vagrant.sh ssh k8s1
-
-kubectl apply -f - <<EOF
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: nginx-1
-  labels:
-    app: nginx-1
-spec:
-  ports:
-    - port: 80
-      protocol: TCP
-  selector:
-    app: nginx-1
-
----
-apiVersion: networking.k8s.io/v1beta1
-kind: Ingress
-metadata:
-  name: nginx-1
-spec:
-  rules:
-    - host: nginx-1.default.mydomain.io
-      http:
-        paths:
-          - path: /
-            backend:
-              serviceName: nginx-1
-              servicePort: 80
-
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: nginx-1
-spec:
-  selector:
-    matchLabels:
-      app: nginx-1
-  replicas: 2
-  template:
-    metadata:
-      labels:
-        app: nginx-1
-    spec:
-      containers:
-        - name: nginx-1
-          image: nginx
-          ports:
-            - containerPort: 80
-EOF
-
-exit
-
-curl -Lk https://nginx-1.default.mydomain.io # Welcome to nginx! 
+cp .env.example .env
 ```
 
-### e.g. Wordpress with Helm
+| ENV | Mandatory? | Default value | Description |
+|-|-|-|-|
+| `VAGRANT_K8S_MASTERS_COUNT` | ✓ | None | Number of masters. |
+| `VAGRANT_K8S_MASTERS_CPUS` | ✓ | None | CPUs (for each master). |
+| `VAGRANT_K8S_MASTERS_MEMORY` | ✓ | None | RAM (for each master). |
+| `VAGRANT_K8S_NODES_COUNT` | ✓ | None | Number of nodes.  |
+| `VAGRANT_K8S_NODES_CPUS` | ✓ | None | CPUs (for each node).  |
+| `VAGRANT_K8S_NODES_MEMORY` | ✓ | None | RAM (for each node). |
+| `VAGRANT_K8S_NODES_PORT_FORWARDING` | ☓ | None | [Port forwarding](https://www.vagrantup.com/docs/networking/forwarded_ports.html#defining-a-forwarded-port) rules (separated by `,`) to be applied for each node (separated by `:`). e.g. `8080=8080:8081=8081,8082=8082:8083=8083`. |
+
+The `.defaults.env` file and the [Ansible roles](provisioning/ansible/roles) used for the provisioning of the instances defines/inject configuration too.
+
+### TLS bootstraping
 
 ```bash
-bash vagrant.sh ssh k8s1
-
-helm install stable/wordpress \
-  --name wordpress-1 \
-  --set serviceType=ClusterIP,ingress.enabled=true,ingress.hosts[0].name=wordpress-1.default.mydomain.io \
-  --wait
-
-exit
-
-curl -Lk https://wordpress-1.default.mydomain.io # Wordpress up and running :)
+bash tls-bootstraping.sh
 ```
 
-## Cleanup
+This script **will not generate files if they already exist** in the `$VAGRANT_K8S_CERTS_HOSTDIR` directory.
+
+
+[That also means that you could provide your own certificates and keys](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet-tls-bootstrapping) by simply copying them into that directory. If you want to get an idea of ​​the name they should have just run `tls-bootstraping.sh` and look at the names of the files in the directory.
+
+### Setup
 
 ```bash
-bash cleanup.sh
+bash vagrant.sh up
+```
+
+### Cleanup
+
+```bash
+bash vagrant.sh destroy
 ```

@@ -1,0 +1,58 @@
+---
+- name: Stat {{ k8s_binaries_path }}/{{ k8s_kube_binary_name }} for future inspections
+  stat:
+    path: "{{ k8s_binaries_path }}/{{ k8s_kube_binary_name }}"
+  register: reg_sym
+
+- name: Get {{ k8s_binaries_path }}/{{ k8s_kube_binary_name }} version
+  command: >-
+    {{ (k8s_binaries_path + '/' + k8s_kube_binary_name) | quote }}
+    {{ k8s_kube_binary_version_flag | default('--version', true) }}
+    {% if k8s_kube_binary_version_extraflags is defined %}
+    {{ k8s_kube_binary_version_extraflags }}
+    {% endif %}
+  register: reg
+  changed_when: False
+  when: reg_sym.stat.exists
+
+- name: Install {{ k8s_binaries_path }}/{{ k8s_kube_binary_name }}
+  copy:
+    src: "{{ reg_global_tempdir.path }}/kubernetes/server/kubernetes/server/bin/{{ k8s_kube_binary_name }}"
+    dest: "{{ k8s_binaries_path }}/{{ k8s_kube_binary_name }}"
+    mode: 0755
+    remote_src: yes
+  register: reg
+  when: not reg_sym.stat.exists or reg.stdout is not search("v" + k8s_version)
+
+- name: Copy {{ k8s_kube_binary_name }} certs
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: "{{ k8s_user }}"
+    group: "{{ k8s_group }}"
+    mode: 0640
+  register: reg_certs
+  with_items:
+    - "{{ k8s_kube_binary_certs }}"
+
+- block:
+  - name: Trigger {{ k8s_kube_binary_name }} handler if the binary has changed
+    debug:
+      var: reg
+    notify: Restart {{ k8s_kube_binary_name }} service
+    changed_when: True
+    when: reg.changed or reg_certs.changed
+
+  - name: Setup {{ k8s_kube_binary_name }} systemd service unit
+    template:
+      src: "{{ k8s_kube_binary_name }}.service.j2"
+      dest: /lib/systemd/system/{{ k8s_kube_binary_name }}.service
+    notify: Restart {{ k8s_kube_binary_name }} service
+
+  - name: Start the {{ k8s_kube_binary_name }} service
+    systemd:
+      name: "{{ k8s_kube_binary_name }}"
+      daemon_reload: yes
+      enabled: yes
+      state: started
+  when: k8s_kube_binary_has_a_service | default(true) | bool

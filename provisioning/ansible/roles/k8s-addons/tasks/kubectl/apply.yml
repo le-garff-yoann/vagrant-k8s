@@ -1,0 +1,22 @@
+---
+- block:
+    - name: Create a tempfile for the definitions file to apply
+      tempfile:
+      register: reg
+      changed_when: False
+
+    - name: Template the definitions file to {{ reg.path }}
+      template:
+        src: "{{ k8s_addons_addon_name }}.definition.j2"
+        dest: "{{ reg.path }}"
+      changed_when: False
+
+    - name: Apply {{ reg.path }} via kubectl
+      command: kubectl apply -f {{ reg.path }}
+      changed_when: False
+  always:
+    - name: Delete the tempfile {{ reg.path }}
+      file:
+        path: "{{ reg.path }}"
+        state: absent
+      changed_when: False

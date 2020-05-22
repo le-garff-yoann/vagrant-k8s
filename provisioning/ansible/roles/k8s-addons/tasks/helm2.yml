@@ -1,0 +1,48 @@
+---
+- name: Stat /usr/local/bin/helm
+  stat:
+    path: /usr/local/bin/helm
+  register: reg_sym
+
+- name: Get /usr/local/bin/helm version
+  command: /usr/local/bin/helm version -c
+  register: reg
+  changed_when: False
+  when: reg_sym.stat.exists
+
+- block:
+    - name: Create a tempdir for the download of helm
+      tempfile:
+        state: directory
+      register: reg_tempdir
+      changed_when: False
+
+    - name: Unarchive {{ k8s_addons_helm2_binary_download_url }} to {{ reg_tempdir.path }}
+      unarchive:
+        src: "{{ k8s_addons_helm2_binary_download_url }}"
+        dest: "{{ reg_tempdir.path }}"
+        remote_src: yes
+      changed_when: False
+
+    - name: Copy {{ reg_tempdir.path }}/linux-amd64/helm to /usr/local/bin/helm
+      copy:
+        src: "{{ reg_tempdir.path }}/linux-amd64/helm"
+        dest: /usr/local/bin/helm
+        remote_src: yes
+        mode: 0755
+      changed_when: False
+  always:
+    - name: Delete the tempdir {{ reg_tempdir.path }}
+      file:
+        path: "{{ reg_tempdir.path }}"
+        state: absent
+      changed_when: False
+  when: not reg_sym.stat.exists or reg.stdout is not search("v" + k8s_addons_helm2_version)
+
+- import_tasks: kubectl/apply.yml
+  vars:
+    k8s_addons_addon_name: helm2
+
+- name: Helm 2 initialization
+  command: /usr/local/bin/helm init --service-account tiller
+  changed_when: False

@@ -1,15 +1,27 @@
 #!/usr/bin/env bash
 
+set -e
+
 scriptdir=$(dirname $(readlink -f "$0"))
-conffile="${scriptdir}/config.yml"
 
-. $scriptdir/defaults.sh
+set -o allexport
 
-for ((i = 1 ; i <= $(cat $conffile | yq -cr .virtual.nodes.count); i++))
+. $scriptdir/.env
+. $scriptdir/.defaults.env
+
+set +o allexport
+
+for ((i=1; i <= $VAGRANT_K8S_MASTERS_COUNT; i++))
 do
-    nodes_addr+=$node_name_prefix$i:$nodes_network.$(($nodes_ip_startafter+$i)),
+    masters_addr+=$VAGRANT_K8S_MASTERS_NAME_PREFIX$i.$VAGRANT_K8S_VMS_DOMAIN:$VAGRANT_K8S_VMS_BASE_NETWORK.$(($VAGRANT_K8S_MASTERS_IP_START_AFTER+$i)),
 done
 
-_VAGRANT_K8S_NODES_VIP=$nodes_vip \
+for ((i=1; i <= $VAGRANT_K8S_NODES_COUNT; i++))
+do
+    nodes_addr+=$VAGRANT_K8S_NODES_NAME_PREFIX$i.$VAGRANT_K8S_VMS_DOMAIN:$VAGRANT_K8S_VMS_BASE_NETWORK.$(($VAGRANT_K8S_NODES_IP_START_AT+$i)),
+done
+
+_VAGRANT_K8S_MASTERS_VIP=$VAGRANT_K8S_MASTERS_VIP \
+_VAGRANT_K8S_MASTERS_ADDR=$masters_addr \
 _VAGRANT_K8S_NODES_ADDR=$nodes_addr \
     vagrant $@

@@ -1,14 +1,12 @@
 ---
-- hosts: all
-  vars:
-    k8s_config: "{{ k8s_config }}"
+- hosts: k8s
   roles:
-    - base
+    - common
     - etcd
-    - docker
+    - container-fabric
+    - k8s
 
-- hosts: all
+- hosts: k8s_masters
   roles:
-    - role: k8s
-      vars:
-        k8s_config: "{{ k8s_config }}"
+    - k8s-addons
+  run_once: True

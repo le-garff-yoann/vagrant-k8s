@@ -1,0 +1,9 @@
+---
+- name: Create {{ k8s_addons_nfs_dynamic_host_path }} for the hostPath volume to mount
+  file:
+    path: "{{ k8s_addons_nfs_dynamic_host_path }}"
+    state: directory
+
+- import_tasks: kubectl/apply.yml
+  vars:
+    k8s_addons_addon_name: nfs-dynamic

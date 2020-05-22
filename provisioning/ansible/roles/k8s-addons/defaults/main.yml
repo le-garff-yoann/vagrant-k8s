@@ -1,0 +1,7 @@
+---
+k8s_addons_coredns_version: 1.6.7
+k8s_addons_coredns_clusterip: 10.2.0.10
+k8s_addons_nfs_dynamic_version: 2.3.0
+k8s_addons_nfs_dynamic_host_path: /srv/nfs
+k8s_addons_helm2_version: 2.16.3
+k8s_addons_helm2_binary_download_url: https://storage.googleapis.com/kubernetes-helm/helm-v{{ k8s_addons_helm2_version }}-linux-amd64.tar.gz

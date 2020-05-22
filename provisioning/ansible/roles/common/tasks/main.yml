@@ -1,0 +1,26 @@
+---
+- name: Add node addresses to the /etc/hosts
+  lineinfile:
+    dest: /etc/hosts
+    line: "{{ hostvars[item].ip }} {{ item }}.{{ ansible_domain }} {{ item }}"
+  with_items: "{{ groups['k8s'] }}"
+
+- name: Configure /etc/resolv.conf
+  lineinfile:
+    dest: /etc/hosts
+    line: "{{ item }}"
+  with_items:
+    - nameserver 8.8.8.8
+    - search {{ ansible_domain }}
+
+- name: Install the ca-certificates package
+  apt:
+    name: ca-certificates
+    update_cache: yes
+  notify: Update CA certificates
+
+- name: Install {{ common_cacertfile_srcpath }} into the local system CA dir {{ common_cacertfile_path }}
+  copy:
+    src: "{{ common_cacertfile_srcpath }}"
+    dest: "{{ common_cacertfile_path }}"
+  notify: Update CA certificates

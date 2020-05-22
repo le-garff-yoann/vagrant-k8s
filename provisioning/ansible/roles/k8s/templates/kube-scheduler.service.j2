@@ -1,20 +1,22 @@
 [Unit]
 Description=Kubernetes Scheduler Server
 Documentation=https://github.com/kubernetes/kubernetes
-After=network.target etcd.service flanneld.service
+After=network.target
 
 [Service]
 Restart=on-failure
 RestartSec=5s
 StartLimitInterval=0
 KillMode=process
-ExecStart=/usr/local/bin/kube-scheduler \
+User={{ k8s_user }}
+Group={{ k8s_group }}
+ExecStart={{ (k8s_binaries_path + '/kube-scheduler') | quote }} \
   --leader-elect=true \
-  --kubeconfig=/var/lib/kube-scheduler/kubeconfig \
   --feature-gates=ExpandPersistentVolumes=true,PodPriority=true \
-  --log-dir=/var/log/kubernetes \
   --logtostderr=false \
-  --v=2
+  --v=2 \
+  --kubeconfig={{ k8s_kubescheduler_kubeconfig | quote }} \
+  --log-dir={{ k8s_logsdir | quote }}
 
 [Install]
 WantedBy=multi-user.target

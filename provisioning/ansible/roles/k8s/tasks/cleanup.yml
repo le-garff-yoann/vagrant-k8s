@@ -1,0 +1,7 @@
+
+---
+- name: Delete the global tempdir {{ reg_global_tempdir.path }}
+  file:
+    path: "{{ reg_global_tempdir.path }}"
+    state: absent
+  changed_when: False

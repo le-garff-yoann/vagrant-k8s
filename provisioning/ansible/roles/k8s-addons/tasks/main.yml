@@ -1,0 +1,8 @@
+---
+- import_tasks: kubectl/apply.yml
+  vars:
+    k8s_addons_addon_name: coredns
+
+- import_tasks: nfs-dynamic.yml
+
+- import_tasks: helm2.yml

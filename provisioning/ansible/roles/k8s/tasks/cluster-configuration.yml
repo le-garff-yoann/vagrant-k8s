@@ -1,0 +1,34 @@
+---
+- name: Wait for kube-apiserver to be available through {{ k8s_masters_vip }}
+  wait_for:
+    host: "{{ k8s_masters_vip }}"
+    port: 443
+
+- name: Wait until all the nodes have joined the cluster
+  command: >-
+    {{ (k8s_binaries_path + '/kubectl') | quote }} get node
+    -o=go-template='{% raw %}{{ len .items }}{% endraw %}'
+  register: reg
+  retries: "{{ k8s_nodes_wait_for_gathering_retries }}"
+  delay: "{{ k8s_nodes_wait_for_gathering_delay }}"
+  until: reg.stdout_lines | first | int == groups['k8s'] | length
+  changed_when: False
+
+- name: Set the node-role.kubernetes.io/master label to k8s masters
+  command: >-
+    {{ (k8s_binaries_path + '/kubectl') | quote }} label node {{ item }}
+    --overwrite
+    node-role.kubernetes.io/master=
+  changed_when: False
+  with_items:
+    - "{{ groups['k8s_masters'] }}"
+
+- name: Set the NoSchedule taint on k8s masters
+  command: >-
+    {{ (k8s_binaries_path + '/kubectl') | quote }} taint node {{ item }}
+    --overwrite
+    node-role.kubernetes.io/master=:NoSchedule
+  changed_when: False
+  with_items:
+    - "{{ groups['k8s_masters'] }}"
+  when: k8s_masters_noschedule | bool

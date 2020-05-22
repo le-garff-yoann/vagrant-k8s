@@ -1,0 +1,6 @@
+---
+- import_tasks: flannel.yml
+
+- import_tasks: docker.yml
+
+- meta: flush_handlers
