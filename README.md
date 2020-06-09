@@ -1,5 +1,7 @@
 # vagrant-k8s
 
+![CI](https://github.com/le-garff-yoann/vagrant-k8s/workflows/CI/badge.svg)
+
 Deploy a multi-master, multi-node Kubernetes cluster [preinstalled with some addons](provisioning/ansible/roles/k8s-addons) using Vagrant and Ansible.
 **It's mostly meant for testing purposes.**
 

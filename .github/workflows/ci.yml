@@ -1,0 +1,25 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  ansible-lint:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Lint Ansible Code
+        uses: ansible/ansible-lint-action@master
+        with:
+          targets: ""
+          override-deps: |
+            ansible==2.9.6
+            ansible-lint==4.2.0
+
+  ansible-lint-yaml:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - name: Lint YAML files
+        uses: ibiqlik/action-yamllint@v1
+        with:
+          config_file: provisioning/ansible/.yamllint

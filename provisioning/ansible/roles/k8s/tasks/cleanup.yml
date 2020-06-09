@@ -1,4 +1,3 @@
-
 ---
 - name: Delete the global tempdir {{ reg_global_tempdir.path }}
   file:
